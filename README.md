@@ -22,8 +22,8 @@ The macro takes three arguments:
 * the name of your MET filtering list
 
 Run it with the -q option (to close ROOT once the process is finished),
-the -l option (to get rid of that silly splash), and + option at the end of the name of the macro so it
-compiles (this makes it go faster.)
+the -l option (to get rid of that silly splash), and the + option at the 
+end of the name of the macro to run in compiled mode (this makes it go faster.)
 
 e.g.:
 ```
