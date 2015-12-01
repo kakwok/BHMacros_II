@@ -1,3 +1,4 @@
+# Script to plot photon-jet isolation variable distributions from the BHflatTuplizer and make them pretty. John Hakala 12/1/2015
 from ROOT import *
 PhotonJetC = TCanvas("PhotonJetC", "Overlapping muon ET / jet ET", 800, 800)
 #gStyle.SetOptTitle("E_{T}^{/mu} / E_{T}^{jet}")

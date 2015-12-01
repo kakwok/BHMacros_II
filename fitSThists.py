@@ -1,3 +1,4 @@
+# Script to fit ST distributions from the BHflatTuplizer and make them pretty. John Hakala 12/1/2015
 from ROOT import *
 from sys import argv
 STexcComparisons = []

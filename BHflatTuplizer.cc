@@ -12,9 +12,10 @@
 #include <fstream>
 #include <stdexcept>
 #include <cstdlib>
-
 #include <TROOT.h>
 #include <TMath.h>
+
+// Macro to make a BH flat ntuple. John Hakala 12/1/2015
 
 void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string metListFilename);
 float dR(float eta1, float phi1, float eta2, float phi2);
