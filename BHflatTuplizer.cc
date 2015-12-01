@@ -699,7 +699,6 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
   outRootFile->Close();
 }
 
-//Event list object for MET filtering
 
 
 // function to calculate dR between two objects
@@ -708,6 +707,7 @@ float dR(float eta1, float phi1, float eta2, float phi2) {
 }
 
 
+// function to make an event list object for MET filtering
 std::map<unsigned, std::set<unsigned> > readEventList(char const* _fileName) {
   std::map<unsigned, std::set<unsigned> > list;
   ifstream listFile(_fileName);
