@@ -1,4 +1,6 @@
 # Script to fit ST distributions from the BHflatTuplizer and make them pretty. John Hakala 12/1/2015
+# this guy takes two arguments: the lower bound of the fit range and the upper bound. Example:
+# python fitSThists.py 1900 2900
 from ROOT import *
 from sys import argv
 STexcComparisons = []
