@@ -9,8 +9,8 @@ Tested on lxplus.
 ##2) Make one big MET filtering list!
 Visit the MET twiki:
 https://twiki.cern.ch/twiki/bin/view/CMS/MissingETOptionalFiltersRun2#Event_Lists
-Download the JetHT MET filtering lists, put them in your home directory,
-untar them, and then use cat to combine them, e.g.:
+Download the JetHT MET filtering lists, put them in a convenient
+directory, untar them, and then use cat to combine them, e.g.:
 ```
 tar -xzvf JetHT_Nov14.tar.gz
 cat JetHT_ecalscn1043093.txt JetHT_csc2015.txt > allMyMETfilteredEvents.tx
