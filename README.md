@@ -3,10 +3,7 @@
 Use hadd to combine all the data ntuples. For example:
 ```
 eosmount ~/eos
-hadd allMyData.root
-~/eos/cms/store/group/phys_exotica/BH_RunII/Data/BH_Ntuples_Run2015CreMiniAODv1_28Nov15/*
-~/eos/cms/store/group/phys_exotica/BH_RunII/Data/BH_Ntuples_Run2015DreMiniAODv1_27Nov15/*
-~/eos/cms/store/group/phys_exotica/BH_RunII/Data/BH_Ntuples_Run2015DpmptRecov4_27Nov15/*
+hadd allMyData.root ~/eos/cms/store/group/phys_exotica/BH_RunII/Data/BH_Ntuples_Run2015CreMiniAODv1_28Nov15/* ~/eos/cms/store/group/phys_exotica/BH_RunII/Data/BH_Ntuples_Run2015DreMiniAODv1_27Nov15/* ~/eos/cms/store/group/phys_exotica/BH_RunII/Data/BH_Ntuples_Run2015DpmptRecov4_27Nov15/*
 ```
 Tested on lxplus.
 ##2) Make one big MET filtering list!
@@ -31,5 +28,5 @@ compiles (this makes it go faster.)
 
 e.g.:
 ```
-root -l -q 'BHflatTuplizer.cc++g("ntuple_output_15.root","testOutput.root","allMETfiltEvts.txt")'
+root -l -q 'BHflatTuplizer.cc++g("allMyData.root","myBHflatTuple.root","allMyMETfilteredEvents.txt")'
 ```
