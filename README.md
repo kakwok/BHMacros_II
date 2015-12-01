@@ -5,7 +5,6 @@ Use hadd to combine all the data ntuples. For example:
 eosmount ~/eos
 hadd allMyData.root ~/eos/cms/store/group/phys_exotica/BH_RunII/Data/BH_Ntuples_Run2015CreMiniAODv1_28Nov15/* ~/eos/cms/store/group/phys_exotica/BH_RunII/Data/BH_Ntuples_Run2015DreMiniAODv1_27Nov15/* ~/eos/cms/store/group/phys_exotica/BH_RunII/Data/BH_Ntuples_Run2015DpmptRecov4_27Nov15/*
 ```
-Tested on lxplus.
 ##2) Make one big MET filtering list!
 Visit the MET twiki:
 https://twiki.cern.ch/twiki/bin/view/CMS/MissingETOptionalFiltersRun2#Event_Lists
