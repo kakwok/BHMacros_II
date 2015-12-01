@@ -12,7 +12,7 @@ Download the JetHT MET filtering lists, put them in a convenient
 directory, untar them, and then use cat to combine them, e.g.:
 ```
 tar -xzvf JetHT_Nov14.tar.gz
-cat JetHT_ecalscn1043093.txt JetHT_csc2015.txt > allMyMETfilteredEvents.tx
+cat JetHT_ecalscn1043093.txt JetHT_csc2015.txt > allMyMETfilteredEvents.txt
 ```
 
 ##3) Run the flatTuplizer in compiled mode!
