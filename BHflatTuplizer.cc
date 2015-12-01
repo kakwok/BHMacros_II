@@ -245,7 +245,7 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
   cout << "Number of events in chain is: " << nEvents << endl;
 
   // loop over all events
-  char percent[3];
+  char percent[5];
   for (int iEvent = 0; iEvent < nEvents; ++iEvent) {
     if (iEvent%50000==0) {
       sprintf(percent, "%i", (100*iEvent)/nEvents);
