@@ -28,5 +28,5 @@ compiles (this makes it go faster.)
 
 e.g.:
 ```
-root -l -q 'BHflatTuplizer.cc++g("allMyData.root","myBHflatTuple.root","allMyMETfilteredEvents.txt")'
+root -l -q 'BHflatTuplizer.cc+("allMyData.root","myBHflatTuple.root","allMyMETfilteredEvents.txt")'
 ```
