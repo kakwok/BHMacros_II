@@ -1,7 +1,8 @@
 # Script to fit ST distributions from the BHflatTuplizer and make them pretty. John Hakala 12/1/2015
-# this guy takes two arguments: the lower bound of the fit range and the upper bound. Example:
-# python fitSThists.py 1900 2900
+# this guy takes three arguments: the input BHflatTuple filename, the output filename, and the name of the file defining the fit ranges
+# python fitSThists.py myBHflatTuple.root myOutputFile.root myFitNormRangesFile.txt
 from ROOT import *
+from fitAndNormRanges import *
 from sys import argv
 STexcComparisons = []
 STincComparisons = []
@@ -9,9 +10,12 @@ upperExcPads = []
 upperIncPads = []
 lowerExcPads = []
 lowerIncPads = []
-PlotsFile = TFile("BHflatTuple_tight.root")
+PlotsFile = TFile(argv[1])
 PlotsDir = PlotsFile.Get("ST")
-OutFile = TFile("output/FormattedFitPlots_Dec1.root", "RECREATE")
+OutFile = TFile(argv[2], "RECREATE")
+fitNormRanges = FitAndNormRange(argv[3])
+fitNormRanges.showFitRanges()
+fitNormRanges.showNormRanges()
 for i in range(2,12):
     stExcMEThist=PlotsDir.Get("stExc%02iHist"%i)
     stExc2METhist=PlotsDir.Get("stExc02Hist")
@@ -47,15 +51,15 @@ for i in range(2,12):
         f1 = TF1("f1", "[0]/([1]*x)**[2]", 1000, 7000)
         f1.SetParameters(2.08e9, 4.28e-3, 6.7)
         for j in range(0, 20):
-            stExcMEThist.Fit("f1", "", "", float(argv[1]), float(argv[2]) )
+            stExcMEThist.Fit("f1", "", "", fitNormRanges.getLowerFitBound("exc2"), fitNormRanges.getUpperFitBound("exc2") )
         f2 = TF1("f2", "([0]*(1+x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, 7000)
         f2.SetParameters(5e3, 2, 0.3, 0.2)
         for j in range(0, 20):
-            stExcMEThist.Fit("f2", "", "", float(argv[1]), float(argv[2]) )
+            stExcMEThist.Fit("f2", "", "", fitNormRanges.getLowerFitBound("exc2"), fitNormRanges.getUpperFitBound("exc2") )
         f3 = TF1("f3", "[0]/([1] + [2]*x + x**2)**[3]", 1000, 7000)
         f3.SetParameters(5e9, 3, 5e3, 0.6)
         for j in range(0, 20):
-            stExcMEThist.Fit("f3", "", "", float(argv[1]), float(argv[2]) )
+            stExcMEThist.Fit("f3", "", "", fitNormRanges.getLowerFitBound("exc2"), fitNormRanges.getUpperFitBound("exc2") )
         f1.SetLineColor(kCyan-5)
         f1.SetLineStyle(6)
         f1.Draw("SAME")
@@ -69,15 +73,15 @@ for i in range(2,12):
         f1MHT = TF1("f1MHT", "[0]/([1]*x)**[2]", 1000, 7000)
         f1MHT.SetParameters(2.08e9, 4.28e-3, 6.7)
         for j in range(0, 20):
-            stExcMHThist.Fit("f1MHT", "", "", float(argv[1]), float(argv[2]) )
+            stExcMHThist.Fit("f1MHT", "", "", fitNormRanges.getLowerFitBound("exc2"), fitNormRanges.getUpperFitBound("exc2")  )
         f2MHT = TF1("f2MHT", "([0]*(1+x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, 7000)
         f2MHT.SetParameters(5e3, 2, 0.3, 0.2)
         for j in range(0, 20):
-            stExcMHThist.Fit("f2MHT", "", "", float(argv[1]), float(argv[2]) )
+            stExcMHThist.Fit("f2MHT", "", "", fitNormRanges.getLowerFitBound("exc2"), fitNormRanges.getUpperFitBound("exc2") )
         f3MHT = TF1("f3MHT", "[0]/([1] + [2]*x + x**2)**[3]", 1000, 7000)
         f3MHT.SetParameters(5e9, 3, 5e3, 0.6)
         for j in range(0, 20):
-            stExcMHThist.Fit("f3MHT", "", "", float(argv[1]), float(argv[2]) )
+            stExcMHThist.Fit("f3MHT", "", "", fitNormRanges.getLowerFitBound("exc2"), fitNormRanges.getUpperFitBound("exc2")  )
         f1MHT.SetLineColor(kOrange+5)
         f1MHT.SetLineStyle(6)
         f1MHT.Draw("SAME")
