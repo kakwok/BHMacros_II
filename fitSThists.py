@@ -1,4 +1,4 @@
-# Script to fit ST distributions from the BHflatTuplizer and make them pretty. John Hakala 12/1/2015
+# Script to fit ST distributions from the BHflatTuplizer, make them pretty, and spit out text files for the combine tool. John Hakala 12/1/2015
 # this guy takes four arguments: the input BHflatTuple filename, the output filename, the name of the file defining the fit ranges, and either useMET or useMHT
 # python fitSThists.py myBHflatTuple.root myOutputFile.root myFitNormRangesFile.txt useMHT
 from ROOT import *
