@@ -49,7 +49,7 @@ fitSThists.py takes four arguments:
 * either "useMET" or "useMHT" to select ST distributions that
   incorporate either MET or MHT.
 
-Run it with the -b to suppress pyroot's frenzied craze of flashing
+Run it with the -b option to suppress pyroot's frenzied flashing
 plots.
 
 e.g.:
