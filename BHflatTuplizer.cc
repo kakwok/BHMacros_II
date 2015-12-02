@@ -26,7 +26,7 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
   bool debugFlag     = false ;
   int  eventsToDump  = 10    ;  // if debugFlag is true, then stop once the number of dumped events reaches eventsToDump
   bool dumpBigEvents = true  ;
-  bool dumpIsoInfo   = true  ;
+  bool dumpIsoInfo   = false  ;
   int  nDumpedEvents = 0     ;
 
   // define output textfile
@@ -106,6 +106,8 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
   bool eventHasMuon     = false         ;
   bool eventHasPhoton   = false         ;
   bool eventHasElectron = false         ;
+  bool  TightJets[25]                   ;
+  bool  isTightJet      = false         ;
   float JetMuonEt       = 0.            ;
   float JetElectronEt   = 0.            ;
   float JetPhotonEt     = 0.            ;
@@ -243,16 +245,15 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
 
   const int nEvents = chain.GetEntries();
   cout << "Number of events in chain is: " << nEvents << endl;
-
+  bool passMETfilterList = true;
   // loop over all events
-  char percent[5];
   for (int iEvent = 0; iEvent < nEvents; ++iEvent) {
     if (iEvent%50000==0) {
-      sprintf(percent, "%i", (100*iEvent)/nEvents);
-      cout << percent << "\% done: Scanned " << iEvent << " events." << endl;
+      cout << std::fixed << std::setw(3) << std::setprecision(1) << (float(iEvent)/float(nEvents))*100 << "% done: Scanned " << iEvent << " events." << endl;
     }
 
     // reset variables
+    isTightJet       = false ;
     OurMet           = 0.    ;
     Px               = 0.    ;
     Py               = 0.    ;
@@ -261,6 +262,7 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
     eventHasMuon     = false ;
     eventHasPhoton   = false ;
     eventHasElectron = false ;
+    std::fill(std::begin( TightJets ), std::end( TightJets ), false );
 
     chain.GetEntry(iEvent);
     // apply trigger and filter requirements
@@ -268,137 +270,153 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
          || !passed_goodVertices || !passed_eeBadScFilter      ) continue;
 
     // use Yutaro's method for applying the event filter
+    passMETfilterList=true;
     auto rItr(list.find(runno));
     if (rItr != list.end()) {
       if (rItr->second.find(evtno) != rItr->second.end()){
-        if (dumpBigEvents) {
+        if (dumpBigEvents && debugFlag) {
           sprintf(messageBuffer, "Event in MET list skipped: run number %d lumi section %d event number %lld\n", runno, lumiblock, evtno);
           outTextFile << messageBuffer;
         }
+        passMETfilterList = false;
         continue;
       }
     }
+    if (!passMETfilterList) cout << "ERROR! This event should be filtered!" << endl;
+
     // apply isolation requirement and calculate ST and MHT.
     //Jets
     for (int iJet = 0; iJet < 25; ++iJet) {
       passIso=true;
+      isTightJet=false;
       JetMuonEt     =0;
       JetElectronEt =0;
       JetPhotonEt   =0;
-      if (JetEt[iJet]>50.) {
-        for (int iMuon = 0; iMuon < 25; ++iMuon ) {
-          if (MuEt[iMuon]>50 && MuPFdBiso[iMuon]<0.15) {
-            eventHasMuon = true;
-            if (JetEt[iJet] && dR(JetEta[iJet],JetPhi[iJet], MuEta[iMuon], MuPhi[iMuon]) < 0.3) {
-              JetMuonEt+=MuEt[iMuon];
-              if (MuEt[iMuon]<150) {
-                MuonJetIso1.Fill(MuEt[iMuon]/JetEt[iJet]);
-                MuonJetoverlapdR1.Fill(dR(JetEta[iJet],JetPhi[iJet],MuEta[iMuon],MuPhi[iMuon]));
-              }
-              if (150<=MuEt[iMuon] && MuEt[iMuon]<250) {
-                MuonJetIso2.Fill(MuEt[iMuon]/JetEt[iJet]);
-                MuonJetoverlapdR2.Fill(dR(JetEta[iJet],JetPhi[iJet],MuEta[iMuon],MuPhi[iMuon]));
-              }
-              if (250<=MuEt[iMuon] && MuEt[iMuon]<400) {
-                MuonJetIso3.Fill(MuEt[iMuon]/JetEt[iJet]);
-                MuonJetoverlapdR3.Fill(dR(JetEta[iJet],JetPhi[iJet],MuEta[iMuon],MuPhi[iMuon]));
-              }
-              if (400<=MuEt[iMuon]) {
-                MuonJetIso4.Fill(MuEt[iMuon]/JetEt[iJet]);
-                MuonJetoverlapdR4.Fill(dR(JetEta[iJet],JetPhi[iJet],MuEta[iMuon],MuPhi[iMuon]));
-              }
-              if (JetMuonEt>0.8*JetEt[iJet]) {
-                passIso = false;
-                if (dumpIsoInfo) {
-                  sprintf(messageBuffer, "Jet number %d failed isolation with Muon number %d  in run number %d lumi section %d event number %lld\n", iJet, iMuon, runno, lumiblock, evtno);
-                  outTextFile << messageBuffer;
-                }
-                break;
-              }
-            }
-          }
-        }
-        for (int iElectron = 0; iElectron < 25; ++iElectron ) {
-          if (EleEt[iElectron]>50) {
-            eventHasElectron = true;
-            if (dR(JetEta[iJet],JetPhi[iJet], EleEta[iElectron], ElePhi[iElectron]) < 0.3) {
-              JetElectronEt+=EleEt[iElectron];
-              if (EleEt[iElectron]<150) {
-                ElectronJetIso1.Fill(EleEt[iElectron]/JetEt[iJet]);
-                ElectronJetoverlapdR1.Fill(dR(JetEta[iJet],JetPhi[iJet],EleEta[iElectron],ElePhi[iElectron]));
-              }
-              if (150<=EleEt[iElectron] && EleEt[iElectron]<250) {
-                ElectronJetIso2.Fill(EleEt[iElectron]/JetEt[iJet]);
-                ElectronJetoverlapdR2.Fill(dR(JetEta[iJet],JetPhi[iJet],EleEta[iElectron],ElePhi[iElectron]));
-              }
-              if (250<=EleEt[iElectron] && EleEt[iElectron]<400) {
-                ElectronJetIso3.Fill(EleEt[iElectron]/JetEt[iJet]);
-                ElectronJetoverlapdR3.Fill(dR(JetEta[iJet],JetPhi[iJet],EleEta[iElectron],ElePhi[iElectron]));
-              }
-              if (400<=EleEt[iElectron]) {
-                ElectronJetIso4.Fill(EleEt[iElectron]/JetEt[iJet]);
-                ElectronJetoverlapdR4.Fill(dR(JetEta[iJet],JetPhi[iJet],EleEta[iElectron],ElePhi[iElectron]));
-              }
-              if (JetElectronEt > 0.7*JetEt[iJet] ) {
-                passIso = false;
-                if (dumpIsoInfo) {
-                  sprintf(messageBuffer, "Jet number %d failed isolation with Electron number %d  in run number %d lumi section %d event number %lld\n", iJet, iElectron, runno, lumiblock, evtno);
-                  outTextFile << messageBuffer;
-                }
-                break;
-              }
-            }
-          }
-        }
-        for (int iPhoton = 0; iPhoton < 25; ++iPhoton ) {
-          if (PhEt[iPhoton]>50) {
-            eventHasPhoton = true;
-            if (dR(JetEta[iJet],JetPhi[iJet], PhEta[iPhoton], PhPhi[iPhoton]) < 0.3) {
-              JetPhotonEt+=PhEt[iPhoton];
-              if (PhEt[iPhoton]<150) {
-                PhotonJetIso1.Fill(PhEt[iPhoton]/JetEt[iJet]);
-                PhotonJetoverlapdR1.Fill(dR(JetEta[iJet],JetPhi[iJet],PhEta[iPhoton],PhPhi[iPhoton]));
-              }
-              if (150<=PhEt[iPhoton] && PhEt[iPhoton]<250) {
-                PhotonJetIso2.Fill(PhEt[iPhoton]/JetEt[iJet]);
-                PhotonJetoverlapdR2.Fill(dR(JetEta[iJet],JetPhi[iJet],PhEta[iPhoton],PhPhi[iPhoton]));
-              }
-              if (250<=PhEt[iPhoton] && PhEt[iPhoton]<400) {
-                PhotonJetIso3.Fill(PhEt[iPhoton]/JetEt[iJet]);
-                PhotonJetoverlapdR3.Fill(dR(JetEta[iJet],JetPhi[iJet],PhEta[iPhoton],PhPhi[iPhoton]));
-              }
-              if (400<=PhEt[iPhoton]) {
-                PhotonJetIso4.Fill(PhEt[iPhoton]/JetEt[iJet]);
-                PhotonJetoverlapdR4.Fill(dR(JetEta[iJet],JetPhi[iJet],PhEta[iPhoton],PhPhi[iPhoton]));
-              }
-              if (JetPhotonEt>0.5*JetEt[iJet] ) {
-                passIso = false;
-                if (dumpIsoInfo) {
-                  sprintf(messageBuffer, "Jet number %d failed isolation with Photon number %d  in run number %d lumi section %d event number %lld\n", iJet, iPhoton, runno, lumiblock, evtno);
-                  outTextFile << messageBuffer;
-                }
-                break;
-              }
-            }
-          }
-        }
-        if (!passIso) continue;
-
-        if (debugFlag) outTextFile << "    JetEt for jet number " << iJet << " is: " << JetEt[iJet] << endl;
-        ST += JetEt[iJet];
-        multiplicity+=1;
-        if (debugFlag && dumpIsoInfo) {
-          sprintf(messageBuffer, "Jet number %d passed isolation in run number %d lumi section %d event number %lld.\n       It had Px=%f and Py=%f\n", iJet, runno, lumiblock, evtno, JetPx[iJet], JetPy[iJet]);
-          outTextFile << messageBuffer;
-        }
-        Px += JetPx[iJet];
-        Py += JetPy[iJet];
-        if (debugFlag && dumpIsoInfo) {
-          sprintf(messageBuffer, "   Cumulative: Px=%f and Py=%f\n", Px, Py);
-          outTextFile << messageBuffer;
+      if (fabs(JetEta[iJet])<=3 && JetNeutHadFrac[iJet]<0.9 && JetNeutEMFrac[iJet]<0.9 && JetNConstituents[iJet]>1 && JetMuFrac[iJet]<0.8) {
+        isTightJet=true;
+        if (fabs(JetEta[iJet])<=2.4) {
+         if ( JetNChgConstituents[iJet] > 0 && JetChgHadFrac[iJet] > 0 && JetChgHadFrac[iJet]>0) isTightJet=true;
+         else isTightJet=false;
         }
       }
-      else break;
+      if (fabs(JetEta[iJet])>3 && JetNeutEMFrac[iJet] < 0.9 && JetNNeutConstituents[iJet] > 10) isTightJet=true;
+      TightJets[iJet]=isTightJet;
+      if (isTightJet) {
+        if (JetEt[iJet]>50.) {
+          for (int iMuon = 0; iMuon < 25; ++iMuon ) {
+            if (MuEt[iMuon]>50 && MuPFdBiso[iMuon]<0.15) {
+              eventHasMuon = true;
+              if (JetEt[iJet] && dR(JetEta[iJet],JetPhi[iJet], MuEta[iMuon], MuPhi[iMuon]) < 0.3) {
+                JetMuonEt+=MuEt[iMuon];
+                if (MuEt[iMuon]<150) {
+                  MuonJetIso1.Fill(MuEt[iMuon]/JetEt[iJet]);
+                  MuonJetoverlapdR1.Fill(dR(JetEta[iJet],JetPhi[iJet],MuEta[iMuon],MuPhi[iMuon]));
+                }
+                if (150<=MuEt[iMuon] && MuEt[iMuon]<250) {
+                  MuonJetIso2.Fill(MuEt[iMuon]/JetEt[iJet]);
+                  MuonJetoverlapdR2.Fill(dR(JetEta[iJet],JetPhi[iJet],MuEta[iMuon],MuPhi[iMuon]));
+                }
+                if (250<=MuEt[iMuon] && MuEt[iMuon]<400) {
+                  MuonJetIso3.Fill(MuEt[iMuon]/JetEt[iJet]);
+                  MuonJetoverlapdR3.Fill(dR(JetEta[iJet],JetPhi[iJet],MuEta[iMuon],MuPhi[iMuon]));
+                }
+                if (400<=MuEt[iMuon]) {
+                  MuonJetIso4.Fill(MuEt[iMuon]/JetEt[iJet]);
+                  MuonJetoverlapdR4.Fill(dR(JetEta[iJet],JetPhi[iJet],MuEta[iMuon],MuPhi[iMuon]));
+                }
+                if (JetMuonEt>0.8*JetEt[iJet]) {
+                  passIso = false;
+                  if (dumpIsoInfo) {
+                    sprintf(messageBuffer, "Jet number %d failed isolation with Muon number %d  in run number %d lumi section %d event number %lld\n", iJet, iMuon, runno, lumiblock, evtno);
+                    outTextFile << messageBuffer;
+                  }
+                  break;
+                }
+              }
+            }
+          }
+          for (int iElectron = 0; iElectron < 25; ++iElectron ) {
+            if (EleEt[iElectron]>50) {
+              eventHasElectron = true;
+              if (dR(JetEta[iJet],JetPhi[iJet], EleEta[iElectron], ElePhi[iElectron]) < 0.3) {
+                JetElectronEt+=EleEt[iElectron];
+                if (EleEt[iElectron]<150) {
+                  ElectronJetIso1.Fill(EleEt[iElectron]/JetEt[iJet]);
+                  ElectronJetoverlapdR1.Fill(dR(JetEta[iJet],JetPhi[iJet],EleEta[iElectron],ElePhi[iElectron]));
+                }
+                if (150<=EleEt[iElectron] && EleEt[iElectron]<250) {
+                  ElectronJetIso2.Fill(EleEt[iElectron]/JetEt[iJet]);
+                  ElectronJetoverlapdR2.Fill(dR(JetEta[iJet],JetPhi[iJet],EleEta[iElectron],ElePhi[iElectron]));
+                }
+                if (250<=EleEt[iElectron] && EleEt[iElectron]<400) {
+                  ElectronJetIso3.Fill(EleEt[iElectron]/JetEt[iJet]);
+                  ElectronJetoverlapdR3.Fill(dR(JetEta[iJet],JetPhi[iJet],EleEta[iElectron],ElePhi[iElectron]));
+                }
+                if (400<=EleEt[iElectron]) {
+                  ElectronJetIso4.Fill(EleEt[iElectron]/JetEt[iJet]);
+                  ElectronJetoverlapdR4.Fill(dR(JetEta[iJet],JetPhi[iJet],EleEta[iElectron],ElePhi[iElectron]));
+                }
+                if (JetElectronEt > 0.7*JetEt[iJet] ) {
+                  passIso = false;
+                  if (dumpIsoInfo) {
+                    sprintf(messageBuffer, "Jet number %d failed isolation with Electron number %d  in run number %d lumi section %d event number %lld\n", iJet, iElectron, runno, lumiblock, evtno);
+                    outTextFile << messageBuffer;
+                  }
+                  break;
+                }
+              }
+            }
+          }
+          for (int iPhoton = 0; iPhoton < 25; ++iPhoton ) {
+            if (PhEt[iPhoton]>50) {
+              eventHasPhoton = true;
+              if (dR(JetEta[iJet],JetPhi[iJet], PhEta[iPhoton], PhPhi[iPhoton]) < 0.3) {
+                JetPhotonEt+=PhEt[iPhoton];
+                if (PhEt[iPhoton]<150) {
+                  PhotonJetIso1.Fill(PhEt[iPhoton]/JetEt[iJet]);
+                  PhotonJetoverlapdR1.Fill(dR(JetEta[iJet],JetPhi[iJet],PhEta[iPhoton],PhPhi[iPhoton]));
+                }
+                if (150<=PhEt[iPhoton] && PhEt[iPhoton]<250) {
+                  PhotonJetIso2.Fill(PhEt[iPhoton]/JetEt[iJet]);
+                  PhotonJetoverlapdR2.Fill(dR(JetEta[iJet],JetPhi[iJet],PhEta[iPhoton],PhPhi[iPhoton]));
+                }
+                if (250<=PhEt[iPhoton] && PhEt[iPhoton]<400) {
+                  PhotonJetIso3.Fill(PhEt[iPhoton]/JetEt[iJet]);
+                  PhotonJetoverlapdR3.Fill(dR(JetEta[iJet],JetPhi[iJet],PhEta[iPhoton],PhPhi[iPhoton]));
+                }
+                if (400<=PhEt[iPhoton]) {
+                  PhotonJetIso4.Fill(PhEt[iPhoton]/JetEt[iJet]);
+                  PhotonJetoverlapdR4.Fill(dR(JetEta[iJet],JetPhi[iJet],PhEta[iPhoton],PhPhi[iPhoton]));
+                }
+                if (JetPhotonEt>0.5*JetEt[iJet] ) {
+                  passIso = false;
+                  if (dumpIsoInfo) {
+                    sprintf(messageBuffer, "Jet number %d failed isolation with Photon number %d  in run number %d lumi section %d event number %lld\n", iJet, iPhoton, runno, lumiblock, evtno);
+                    outTextFile << messageBuffer;
+                  }
+                  break;
+                }
+              }
+            }
+          }
+          if (!passIso) continue;
+
+          if (debugFlag) outTextFile << "    JetEt for jet number " << iJet << " is: " << JetEt[iJet] << endl;
+          ST += JetEt[iJet];
+          multiplicity+=1;
+          if (debugFlag && dumpIsoInfo) {
+            sprintf(messageBuffer, "Jet number %d passed isolation in run number %d lumi section %d event number %lld.\n       It had Px=%f and Py=%f\n", iJet, runno, lumiblock, evtno, JetPx[iJet], JetPy[iJet]);
+            outTextFile << messageBuffer;
+          }
+          Px += JetPx[iJet];
+          Py += JetPy[iJet];
+          if (debugFlag && dumpIsoInfo) {
+            sprintf(messageBuffer, "   Cumulative: Px=%f and Py=%f\n", Px, Py);
+            outTextFile << messageBuffer;
+          }
+        }
+        else break;
+      }
     }
 
     //Electrons
@@ -407,7 +425,7 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
         passIso=true;
         if (EleEt[iElectron]>50.) {
           for (int iJet = 0; iJet < 25; ++iJet ) {
-            if (JetEt[iJet]>50 && dR(EleEta[iElectron],ElePhi[iElectron], JetEta[iJet], JetPhi[iJet]) < 0.3) {
+            if (TightJets[iJet] && JetEt[iJet]>50 && dR(EleEta[iElectron],ElePhi[iElectron], JetEta[iJet], JetPhi[iJet]) < 0.3) {
               if (EleEt[iElectron]<0.7*JetEt[iJet]) {
                 passIso = false;
                 if (dumpIsoInfo) {
@@ -470,7 +488,7 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
         passIso=true;
         if (PhEt[iPhoton]>50.) {
           for (int iJet = 0; iJet < 25; ++iJet ) {
-            if (JetEt[iJet]>50 && dR(PhEta[iPhoton],PhPhi[iPhoton], JetEta[iJet], JetPhi[iJet]) < 0.3) {
+            if (TightJets[iJet] && JetEt[iJet]>50 && dR(PhEta[iPhoton],PhPhi[iPhoton], JetEta[iJet], JetPhi[iJet]) < 0.3) {
               if (PhEt[iPhoton]<0.5*JetEt[iJet]) {
                 passIso = false;
                 if (dumpIsoInfo) {
@@ -583,11 +601,50 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
 
 
     // dump info on events with
-    if ((ST>3000 || STMHTnoMET>4000 || Met > 500 || OurMet > 500 || fabs(OurMet-Met)>300) && dumpBigEvents) {
-      if (debugFlag) cout << "In run number " << runno << " lumi section " << lumiblock << " event number " << evtno << " ST is:" << ST << endl;
-      if (debugFlag) cout << "In run number " << runno << " lumi section " << lumiblock << " event number " << evtno << " ST with MHT is:" << STMHTnoMET << endl;
+    if (multiplicity>=2 && ST>5500 && dumpBigEvents) {
+      sprintf(messageBuffer, "In run number %d lumi section %d event number %lld ST is %f and multiplicity is %d\n", runno, lumiblock, evtno, ST, multiplicity);
+      outTextFile << messageBuffer;
+      for (int j=0; j<25; ++j) {
+        if(JetEt[j]>0.000) {
+          sprintf(messageBuffer, "    Jet %d has TightJet=%d Et=%f, Px=%f, Py=%f, Eta=%f, Phi=%f\n", j, TightJets[j],  JetEt[j], JetPx[j], JetPy[j], JetEta[j], JetPhi[j]);
+          outTextFile << messageBuffer;
+        }
+        if (debugFlag) cout  << messageBuffer;
+      }
+      for (int j=0; j<25; ++j) {
+        if(EleEt[j]>0.000) {
+          sprintf(messageBuffer, "    Ele %d has Et=%f, Px=%f, Py=%f, Eta=%f, Phi=%f\n", j, EleEt[j], ElePx[j], ElePy[j], EleEta[j], ElePhi[j]);
+          outTextFile << messageBuffer;
+        }
+        if (debugFlag) cout  << messageBuffer;
+      }
+      for (int j=0; j<25; ++j) {
+        if(PhEt[j]>0.000) {
+          sprintf(messageBuffer, "    Ph %d has Et=%f, Px=%f, Py=%f, Eta=%f, Phi=%f\n", j, PhEt[j], PhPx[j], PhPy[j], PhEta[j], PhPhi[j]);
+          outTextFile << messageBuffer;
+        }
+        if (debugFlag) cout  << messageBuffer;
+      }
+      for (int j=0; j<25; ++j) {
+        if(MuEt[j]>0.000) {
+          sprintf(messageBuffer, "    Mu %d has Et=%f, Px=%f, Py=%f, Eta=%f, Phi=%f\n", j, MuEt[j], MuPx[j], MuPy[j], MuEta[j], MuPhi[j]);
+          outTextFile << messageBuffer;
+        }
+        if (debugFlag) cout  << messageBuffer;
+      }
+      sprintf(messageBuffer, "    our Px is=%f\n", Px);
+      outTextFile << messageBuffer;
+      sprintf(messageBuffer, "    our Py is=%f\n", Py);
+      outTextFile << messageBuffer;
+      sprintf(messageBuffer, "    our MHT is=%f\n", OurMet);
+      outTextFile << messageBuffer;
+      sprintf(messageBuffer, "    MET is=%f\n", Met);
+      outTextFile << messageBuffer;
+      if (debugFlag) cout  << messageBuffer;
+      sprintf(messageBuffer, "\n\n\n\n");
+      outTextFile << messageBuffer;
     }
-    if (( STMHTnoMET>4000 || Met > 500 || OurMet > 500 || fabs(OurMet-Met)>300) && dumpBigEvents) {
+    if (debugFlag && ( STMHTnoMET>4000 || Met > 2000 || OurMet > 2000 || fabs(OurMet-Met)>100) && multiplicity>=2) {
       if (debugFlag) cout << "In run number " << runno << " lumi section " << lumiblock << " event number " << evtno << " sT is:" << ST << endl;
       if (dumpIsoInfo) {
         sprintf(messageBuffer, "In run number %d lumi section %d event number %lld ST is %f and multiplicity is %d\n", runno, lumiblock, evtno, ST, multiplicity);
@@ -598,7 +655,7 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
       // dump all object info
       for (int j=0; j<25; ++j) {
         if(debugFlag && dumpIsoInfo && JetEt[j]>0.000) {
-          sprintf(messageBuffer, "    Jet %d has Et=%f, Px=%f, Py=%f, Eta=%f, Phi=%f\n", j, JetEt[j], JetPx[j], JetPy[j], JetEta[j], JetPhi[j]);
+          sprintf(messageBuffer, "    Jet %d has TightJet=%d Et=%f, Px=%f, Py=%f, Eta=%f, Phi=%f\n", j, TightJets[j],  JetEt[j], JetPx[j], JetPy[j], JetEta[j], JetPhi[j]);
           outTextFile << messageBuffer;
         }
         if (debugFlag) cout  << messageBuffer;

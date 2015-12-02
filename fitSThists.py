@@ -9,7 +9,7 @@ upperExcPads = []
 upperIncPads = []
 lowerExcPads = []
 lowerIncPads = []
-PlotsFile = TFile("no2015CflatTuple.root")
+PlotsFile = TFile("BHflatTuple_tight.root")
 PlotsDir = PlotsFile.Get("ST")
 OutFile = TFile("output/FormattedFitPlots_Dec1.root", "RECREATE")
 for i in range(2,12):
