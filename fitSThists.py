@@ -12,7 +12,7 @@ lowerExcPads = []
 lowerIncPads = []
 PlotsFile = TFile(argv[1])
 PlotsDir = PlotsFile.Get("ST")
-OutFile = TFile(argv[2], "RECREATE")
+OutFile = TFile("output/%s"%argv[2], "RECREATE")
 fitNormRanges = FitAndNormRange(argv[3])
 fitNormRanges.showFitRanges()
 fitNormRanges.showNormRanges()
