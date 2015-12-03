@@ -664,10 +664,10 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
       if (eventHasPhoton)                                         METvsMHTinc2hasPhoton.Fill(OurMet, Met);
       if (eventHasElectron)                                       METvsMHTinc2hasElectron.Fill(OurMet, Met);
       if (!eventHasMuon && !eventHasPhoton && !eventHasElectron)  METvsMHTinc2onlyJets.Fill(OurMet, Met);
-      if (eventHasMuon)                                           METvsMHTinc2hasMuon.Fill(OurMet_tight, Met);
-      if (eventHasPhoton)                                         METvsMHTinc2hasPhoton.Fill(OurMet_tight, Met);
-      if (eventHasElectron)                                       METvsMHTinc2hasElectron.Fill(OurMet_tight, Met);
-      if (!eventHasMuon && !eventHasPhoton && !eventHasElectron)  METvsMHTinc2onlyJets.Fill(OurMet_tight, Met);
+      if (eventHasMuon)                                           METvsMHTinc2hasMuon_tight.Fill(OurMet_tight, Met);
+      if (eventHasPhoton)                                         METvsMHTinc2hasPhoton_tight.Fill(OurMet_tight, Met);
+      if (eventHasElectron)                                       METvsMHTinc2hasElectron_tight.Fill(OurMet_tight, Met);
+      if (!eventHasMuon && !eventHasPhoton && !eventHasElectron)  METvsMHTinc2onlyJets_tight.Fill(OurMet_tight, Met);
     }
     if (dumpIsoInfo && fabs(OurMet-Met)>300) {
       sprintf(messageBuffer, "MET-MHT is %f in run number %d lumi section %d event number %lld. ST is %f and multiplicity is %d\n", Met-OurMet, runno, lumiblock, evtno, ST, multiplicity);
