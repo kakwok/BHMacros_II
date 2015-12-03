@@ -25,7 +25,7 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
   std::map<unsigned, std::set<unsigned> > list = readEventList(metListFilename.c_str());
   bool debugFlag     = false ;
   int  eventsToDump  = 25    ;  // if debugFlag is true, then stop once the number of dumped events reaches eventsToDump
-  bool dumpBigEvents = false ;
+  bool dumpBigEvents = true ;
   bool dumpIsoInfo   = false ;
   int  nDumpedEvents = 0     ;
 
@@ -129,6 +129,8 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
   float STMHTnoMET_tight = 0.            ;
   int multiplicity_tight = 0             ;
   bool passIso_tight     = true          ;
+  bool passMetCut        = true          ;
+  bool passMetCut_tight  = true          ;
   char *messageBuffer    = new char[400] ;
   bool eventHasMuon      = false         ;
   bool eventHasPhoton    = false         ;
@@ -625,24 +627,37 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
     OurMet = std::sqrt(Px*Px + Py*Py);
     OurMet_tight = std::sqrt(Px_tight*Px_tight + Py_tight*Py_tight);
     if (debugFlag) cout << "    Met calculated according to my recipe is: " << OurMet << endl;
+    if (2*ST>Met) passMetCut=true;
+    else passMetCut=false;
+    if (2*ST_tight>Met) {
+      passMetCut_tight=true;
+      sprintf(messageBuffer, "   This event had MET/HT = %f so it failed the cut\n", (Met/ST));
+      outTextFile << messageBuffer;
+    }
+    else passMetCut_tight=false;
     STMHTnoMET = ST + OurMet;
     STMHTnoMET_tight = ST_tight + OurMet_tight;
     ST += Met;
     ST_tight += Met;
-    stHist.Fill(ST);
-    stHist_tight.Fill(ST_tight);
-    stHistMHT_tight.Fill(STMHTnoMET_tight);
-    for (int iHist = 0; iHist<multMax-2; ++iHist) {
-      if (multiplicity == iHist+2) stExcHist[iHist]->Fill(ST);
-      if (multiplicity >= iHist+2) stIncHist[iHist]->Fill(ST);
-      if (multiplicity_tight == iHist+2) stExcHist_tight[iHist]->Fill(ST_tight);
-      if (multiplicity_tight >= iHist+2) stIncHist_tight[iHist]->Fill(ST_tight);
+    if (passMetCut){
+      stHist.Fill(ST);
+      stHistMHT.Fill(STMHTnoMET_tight);
+    }
+    if (passMetCut_tight){
+      stHist_tight.Fill(ST_tight);
+      stHistMHT_tight.Fill(STMHTnoMET_tight);
     }
     for (int iHist = 0; iHist<multMax-2; ++iHist) {
-      if (multiplicity == iHist+2) stExcHistMHT[iHist]->Fill(STMHTnoMET);
-      if (multiplicity >= iHist+2) stIncHistMHT[iHist]->Fill(STMHTnoMET);
-      if (multiplicity_tight == iHist+2) stExcHistMHT_tight[iHist]->Fill(STMHTnoMET_tight);
-      if (multiplicity_tight >= iHist+2) stIncHistMHT_tight[iHist]->Fill(STMHTnoMET_tight);
+      if (multiplicity == iHist+2 && passMetCut) stExcHist[iHist]->Fill(ST);
+      if (multiplicity >= iHist+2 && passMetCut) stIncHist[iHist]->Fill(ST);
+      if (multiplicity_tight == iHist+2 && passMetCut_tight) stExcHist_tight[iHist]->Fill(ST_tight);
+      if (multiplicity_tight >= iHist+2 && passMetCut_tight) stIncHist_tight[iHist]->Fill(ST_tight);
+    }
+    for (int iHist = 0; iHist<multMax-2; ++iHist) {
+      if (multiplicity == iHist+2 && passMetCut) stExcHistMHT[iHist]->Fill(STMHTnoMET);
+      if (multiplicity >= iHist+2 && passMetCut) stIncHistMHT[iHist]->Fill(STMHTnoMET);
+      if (multiplicity_tight == iHist+2 && passMetCut_tight) stExcHistMHT_tight[iHist]->Fill(STMHTnoMET_tight);
+      if (multiplicity_tight >= iHist+2 && passMetCut_tight) stIncHistMHT_tight[iHist]->Fill(STMHTnoMET_tight);
     }
     METvsMHT.Fill(OurMet,Met);
     METvsMHT_tight.Fill(OurMet_tight,Met);
