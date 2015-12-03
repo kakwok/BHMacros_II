@@ -641,7 +641,7 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
     ST_tight += Met;
     if (passMetCut){
       stHist.Fill(ST);
-      stHistMHT.Fill(STMHTnoMET_tight);
+      stHistMHT.Fill(STMHTnoMET);
     }
     if (passMetCut_tight){
       stHist_tight.Fill(ST_tight);
