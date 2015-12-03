@@ -24,9 +24,9 @@ std::map<unsigned, std::set<unsigned> > readEventList(char const* _fileName);
 void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string metListFilename) {
   std::map<unsigned, std::set<unsigned> > list = readEventList(metListFilename.c_str());
   bool debugFlag     = false ;
-  int  eventsToDump  = 10    ;  // if debugFlag is true, then stop once the number of dumped events reaches eventsToDump
-  bool dumpBigEvents = true  ;
-  bool dumpIsoInfo   = false  ;
+  int  eventsToDump  = 25    ;  // if debugFlag is true, then stop once the number of dumped events reaches eventsToDump
+  bool dumpBigEvents = false ;
+  bool dumpIsoInfo   = false ;
   int  nDumpedEvents = 0     ;
 
   // define output textfile
@@ -140,7 +140,9 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
   float JetPhotonEt      = 0.            ;
 
   // variables accessed from the tree
+  //TODO
   Bool_t     firedHLT_PFHT800_v2       ;
+  //Bool_t     firedHLT_PFHT800_v1       ;
   Bool_t     passed_CSCTightHaloFilter ;
   Bool_t     passed_goodVertices       ;
   Bool_t     passed_eeBadScFilter      ;
@@ -179,7 +181,9 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
   float      Met                       ;
 
   // tree branches
+  //TODO
   TBranch  *b_firedHLT_PFHT800_v2       ;
+  //TBranch  *b_firedHLT_PFHT800_v1       ;
   TBranch  *b_passed_CSCTightHaloFilter ;
   TBranch  *b_passed_goodVertices       ;
   TBranch  *b_passed_eeBadScFilter      ;
@@ -232,7 +236,9 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
   cout << "Opened chain: " << chain.GetName() << endl;
 
   // set all branch addresses
+  // TODO
   chain.SetBranchAddress( "firedHLT_PFHT800_v2"       ,  &firedHLT_PFHT800_v2       ,  &b_firedHLT_PFHT800_v2       );
+  //chain.SetBranchAddress( "firedHLT_PFHT800_v1"       ,  &firedHLT_PFHT800_v1       ,  &b_firedHLT_PFHT800_v1       );
   chain.SetBranchAddress( "passed_CSCTightHaloFilter" ,  &passed_CSCTightHaloFilter ,  &b_passed_CSCTightHaloFilter );
   chain.SetBranchAddress( "passed_goodVertices"       ,  &passed_goodVertices       ,  &b_passed_goodVertices       );
   chain.SetBranchAddress( "passed_eeBadScFilter"      ,  &passed_eeBadScFilter      ,  &b_passed_eeBadScFilter      );
@@ -280,20 +286,27 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
     }
 
     // reset variables
-    isTightJet       = false ;
-    OurMet           = 0.    ;
-    Px               = 0.    ;
-    Py               = 0.    ;
-    ST               = 0.    ;
-    multiplicity     = 0     ;
-    eventHasMuon     = false ;
-    eventHasPhoton   = false ;
-    eventHasElectron = false ;
+    isTightJet          = false ;
+    OurMet              = 0.    ;
+    Px                  = 0.    ;
+    Py                  = 0.    ;
+    ST                  = 0.    ;
+    multiplicity        = 0     ;
+    OurMet_tight        = 0.    ;
+    Px_tight            = 0.    ;
+    Py_tight            = 0.    ;
+    ST_tight            = 0.    ;
+    multiplicity_tight  = 0     ;
+    eventHasMuon        = false ;
+    eventHasPhoton      = false ;
+    eventHasElectron    = false ;
     std::fill(std::begin( TightJets ), std::end( TightJets ), false );
 
     chain.GetEntry(iEvent);
     // apply trigger and filter requirements
+    //TODO
     if (    !firedHLT_PFHT800_v2 || !passed_CSCTightHaloFilter
+    //if (    !firedHLT_PFHT800_v1 || !passed_CSCTightHaloFilter
          || !passed_goodVertices || !passed_eeBadScFilter      ) continue;
 
     // use Yutaro's method for applying the event filter
@@ -315,6 +328,7 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
     //Jets
     for (int iJet = 0; iJet < 25; ++iJet) {
       passIso=true;
+      passIso_tight=true;
       isTightJet=false;
       JetMuonEt     =0;
       JetElectronEt =0;
