@@ -99,10 +99,6 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
     stIncHist_tight[iHist] = new TH1F(histTitle, "Inclusive ST_tight", 100, 500, 10500);
     sprintf(histTitle, "stExc%02dHist_tight", mult);
     stExcHist_tight[iHist] = new TH1F(histTitle, "Exclusive ST_tight", 100, 500, 10500);
-    ++mult;
-  }
-  mult=2;
-  for (int iHist = 0; iHist<multMax-2; ++iHist) {
     sprintf(histTitle, "stInc%02dHistMHT", mult);
     stIncHistMHT[iHist] = new TH1F(histTitle, "Inclusive ST using MHT", 100, 500, 10500);
     sprintf(histTitle, "stExc%02dHistMHT", mult);
