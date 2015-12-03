@@ -41,6 +41,12 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
   TH2F METvsMHTinc2hasPhoton   = TH2F("METvsMHTinc2hasPhoton"   ,  "METvsMHTinc2hasPhoton"   ,  1000,  0.,  20000.,  1000,  0.,  20000.);
   TH2F METvsMHTinc2hasElectron = TH2F("METvsMHTinc2hasElectron" ,  "METvsMHTinc2hasElectron" ,  1000,  0.,  20000.,  1000,  0.,  20000.);
   TH2F METvsMHTinc2onlyJets    = TH2F("METvsMHTinc2onlyJets"    ,  "METvsMHTinc2onlyJets"    ,  1000,  0.,  20000.,  1000,  0.,  20000.);
+  TH2F METvsMHT_tight                = TH2F("METvsMHT_tight"                ,  "METvsMHT_tight"                ,  1000,  0.,  20000.,  1000,  0.,  20000.);
+  TH2F METvsMHTinc2_tight            = TH2F("METvsMHTinc2_tight"            ,  "METvsMHTinc2_tight"            ,  1000,  0.,  20000.,  1000,  0.,  20000.);
+  TH2F METvsMHTinc2hasMuon_tight     = TH2F("METvsMHTinc2hasMuon_tight"     ,  "METvsMHTinc2hasMuon_tight"     ,  1000,  0.,  20000.,  1000,  0.,  20000.);
+  TH2F METvsMHTinc2hasPhoton_tight   = TH2F("METvsMHTinc2hasPhoton_tight"   ,  "METvsMHTinc2hasPhoton_tight"   ,  1000,  0.,  20000.,  1000,  0.,  20000.);
+  TH2F METvsMHTinc2hasElectron_tight = TH2F("METvsMHTinc2hasElectron_tight" ,  "METvsMHTinc2hasElectron_tight" ,  1000,  0.,  20000.,  1000,  0.,  20000.);
+  TH2F METvsMHTinc2onlyJets_tight    = TH2F("METvsMHTinc2onlyJets_tight"    ,  "METvsMHTinc2onlyJets_tight"    ,  1000,  0.,  20000.,  1000,  0.,  20000.);
 
   TH1F MuonJetIso1             = TH1F("MuonJetIso1"             ,  "MuonJetIso1"             ,  300,   0.,  3);
   TH1F MuonJetIso2             = TH1F("MuonJetIso2"             ,  "MuonJetIso2"             ,  300,   0.,  3);
@@ -69,13 +75,19 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
 
   // loop to create ST histograms for inclusive and exclusive multiplicities from 2 up to multMax
   TH1F stHist = TH1F("stHist", "ST", 100, 500, 10500);
+  TH1F stHist_tight = TH1F("stHist_tight", "ST_tight", 100, 500, 10500);
   int mult=2;
   int multMax = 12;
   TH1F *stIncHist[multMax-2];
   TH1F *stExcHist[multMax-2];
+  TH1F *stIncHist_tight[multMax-2];
+  TH1F *stExcHist_tight[multMax-2];
   TH1F stHistMHT = TH1F("stHistMHT", "ST using MHT", 100, 500, 10500);
+  TH1F stHistMHT_tight = TH1F("stHistMHT_tight", "ST_tight using MHT_tight", 100, 500, 10500);
   TH1F *stIncHistMHT[multMax-2];
   TH1F *stExcHistMHT[multMax-2];
+  TH1F *stIncHistMHT_tight[multMax-2];
+  TH1F *stExcHistMHT_tight[multMax-2];
   char *histTitle = new char[20];
   // These use pat::slimmedMETs
   for (int iHist = 0; iHist<multMax-2; ++iHist) {
@@ -83,6 +95,10 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
     stIncHist[iHist] = new TH1F(histTitle, "Inclusive ST", 100, 500, 10500);
     sprintf(histTitle, "stExc%02dHist", mult);
     stExcHist[iHist] = new TH1F(histTitle, "Exclusive ST", 100, 500, 10500);
+    sprintf(histTitle, "stInc%02dHist_tight", mult);
+    stIncHist_tight[iHist] = new TH1F(histTitle, "Inclusive ST_tight", 100, 500, 10500);
+    sprintf(histTitle, "stExc%02dHist_tight", mult);
+    stExcHist_tight[iHist] = new TH1F(histTitle, "Exclusive ST_tight", 100, 500, 10500);
     ++mult;
   }
   mult=2;
@@ -91,26 +107,37 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
     stIncHistMHT[iHist] = new TH1F(histTitle, "Inclusive ST using MHT", 100, 500, 10500);
     sprintf(histTitle, "stExc%02dHistMHT", mult);
     stExcHistMHT[iHist] = new TH1F(histTitle, "Exclusive ST using MHT", 100, 500, 10500);
+    sprintf(histTitle, "stInc%02dHistMHT_tight", mult);
+    stIncHistMHT_tight[iHist] = new TH1F(histTitle, "Inclusive ST_tight using MHT_tight", 100, 500, 10500);
+    sprintf(histTitle, "stExc%02dHistMHT_tight", mult);
+    stExcHistMHT_tight[iHist] = new TH1F(histTitle, "Exclusive ST_tight using MHT_tight", 100, 500, 10500);
     ++mult;
   }
 
   // variables calculated in the loop
-  float OurMet          = 0.            ;
-  float Px              = 0.            ;
-  float Py              = 0.            ;
-  float ST              = 0.            ;
-  float STMHTnoMET      = 0.            ;
-  int multiplicity      = 0             ;
-  bool passIso          = true          ;
-  char *messageBuffer   = new char[400] ;
-  bool eventHasMuon     = false         ;
-  bool eventHasPhoton   = false         ;
-  bool eventHasElectron = false         ;
-  bool  TightJets[25]                   ;
-  bool  isTightJet      = false         ;
-  float JetMuonEt       = 0.            ;
-  float JetElectronEt   = 0.            ;
-  float JetPhotonEt     = 0.            ;
+  float OurMet           = 0.            ;
+  float Px               = 0.            ;
+  float Py               = 0.            ;
+  float ST               = 0.            ;
+  float STMHTnoMET       = 0.            ;
+  int multiplicity       = 0             ;
+  bool passIso           = true          ;
+  float OurMet_tight     = 0.            ;
+  float Px_tight         = 0.            ;
+  float Py_tight         = 0.            ;
+  float ST_tight         = 0.            ;
+  float STMHTnoMET_tight = 0.            ;
+  int multiplicity_tight = 0             ;
+  bool passIso_tight     = true          ;
+  char *messageBuffer    = new char[400] ;
+  bool eventHasMuon      = false         ;
+  bool eventHasPhoton    = false         ;
+  bool eventHasElectron  = false         ;
+  bool  TightJets[25]                    ;
+  bool  isTightJet       = false         ;
+  float JetMuonEt        = 0.            ;
+  float JetElectronEt    = 0.            ;
+  float JetPhotonEt      = 0.            ;
 
   // variables accessed from the tree
   Bool_t     firedHLT_PFHT800_v2       ;
@@ -301,7 +328,7 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
       }
       if (fabs(JetEta[iJet])>3 && JetNeutEMFrac[iJet] < 0.9 && JetNNeutConstituents[iJet] > 10) isTightJet=true;
       TightJets[iJet]=isTightJet;
-      if (isTightJet) {
+      //if (isTightJet) {
         if (JetEt[iJet]>50.) {
           for (int iMuon = 0; iMuon < 25; ++iMuon ) {
             if (MuEt[iMuon]>50 && MuPFdBiso[iMuon]<0.15) {
@@ -404,30 +431,37 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
           if (debugFlag) outTextFile << "    JetEt for jet number " << iJet << " is: " << JetEt[iJet] << endl;
           ST += JetEt[iJet];
           multiplicity+=1;
+          Px += JetPx[iJet];
+          Py += JetPy[iJet];
+
+          if(isTightJet) {
+            ST_tight += JetEt[iJet];
+            multiplicity_tight+=1;
+            Px_tight += JetPx[iJet];
+            Py_tight += JetPy[iJet];
+          }
           if (debugFlag && dumpIsoInfo) {
             sprintf(messageBuffer, "Jet number %d passed isolation in run number %d lumi section %d event number %lld.\n       It had Px=%f and Py=%f\n", iJet, runno, lumiblock, evtno, JetPx[iJet], JetPy[iJet]);
             outTextFile << messageBuffer;
-          }
-          Px += JetPx[iJet];
-          Py += JetPy[iJet];
-          if (debugFlag && dumpIsoInfo) {
             sprintf(messageBuffer, "   Cumulative: Px=%f and Py=%f\n", Px, Py);
             outTextFile << messageBuffer;
           }
         }
         else break;
-      }
+      //}
     }
 
     //Electrons
     if (eventHasElectron) {
       for (int iElectron = 0; iElectron < 25; ++iElectron) {
         passIso=true;
+        passIso_tight=true;
         if (EleEt[iElectron]>50.) {
           for (int iJet = 0; iJet < 25; ++iJet ) {
-            if (TightJets[iJet] && JetEt[iJet]>50 && dR(EleEta[iElectron],ElePhi[iElectron], JetEta[iJet], JetPhi[iJet]) < 0.3) {
+            if (JetEt[iJet]>50 && dR(EleEta[iElectron],ElePhi[iElectron], JetEta[iJet], JetPhi[iJet]) < 0.3) {
               if (EleEt[iElectron]<0.7*JetEt[iJet]) {
                 passIso = false;
+                if(TightJets[iJet]) passIso_tight=false;
                 if (dumpIsoInfo) {
                   sprintf(messageBuffer, "Electron number %d failed isolation with Jet number %d  in run number %d lumi section %d event number %lld\n", iElectron, iJet, runno, lumiblock, evtno);
                   outTextFile << messageBuffer;
@@ -436,25 +470,13 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
               }
             }
           }
-          if (!passIso) continue;
-
-          // Throw away photon if there is an electron/photon overlap
-          //for (int iPhoton = 0; iPhoton < 25; ++iPhoton ) {
-          //  if (PhEt[iPhoton]>50 && dR(EleEta[iElectron],ElePhi[iElectron], PhEta[iPhoton], PhPhi[iPhoton]) < 0.3) {
-          //    if (dumpIsoInfo) {
-          //      sprintf(messageBuffer, "Electron number %d failed isolation with Photon number %d  in run number %d lumi section %d event number %lld\n", iElectron, iPhoton, runno, lumiblock, evtno);
-          //      outTextFile << messageBuffer;
-          //    }
-          //    passIso = false;
-          //    break;
-          //  }
-          //}
-          //if (!passIso) continue;
+          if (!passIso_tight) continue;
 
           // Throw away electron if there's an electron/muon overlap.
           for (int iMuon = 0; iMuon < 25; ++iMuon ) {
             if (MuEt[iMuon]>50 && MuPFdBiso[iMuon]<0.15 && dR(EleEta[iElectron],ElePhi[iElectron], MuEta[iMuon], MuPhi[iMuon]) < 0.3) {
               passIso = false;
+              passIso_tight = false;
               if (dumpIsoInfo) {
                 sprintf(messageBuffer, "Electron number %d failed isolation with Muon number %d  in run number %d lumi section %d event number %lld\n", iElectron, iMuon, runno, lumiblock, evtno);
                 outTextFile << messageBuffer;
@@ -462,18 +484,22 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
               break;
             }
           }
-          if (!passIso) continue;
+          if (!passIso_tight) continue;
 
           if (debugFlag) cout << "    EleEt for electron number " << iElectron << " is: " << EleEt[iElectron] << endl;
-          ST += EleEt[iElectron];
-          multiplicity+=1;
+          ST_tight += EleEt[iElectron];
+          multiplicity_tight+=1;
+          Px_tight += ElePx[iElectron];
+          Py_tight += ElePy[iElectron];
+          if (passIso) {
+            ST += EleEt[iElectron];
+            multiplicity+=1;
+            Px += ElePx[iElectron];
+            Py += ElePy[iElectron];
+          }
           if (debugFlag && dumpIsoInfo) {
             sprintf(messageBuffer, "Ele number %d passed isolation in run number %d lumi section %d event number %lld.      \n It had Px=%f and Py=%f\n", iElectron, runno, lumiblock, evtno, ElePx[iElectron], ElePy[iElectron]);
             outTextFile << messageBuffer;
-          }
-          Px += ElePx[iElectron];
-          Py += ElePy[iElectron];
-          if (debugFlag && dumpIsoInfo) {
             sprintf(messageBuffer, "   Cumulative: Px=%f and Py=%f\n", Px, Py);
             outTextFile << messageBuffer;
           }
@@ -488,9 +514,10 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
         passIso=true;
         if (PhEt[iPhoton]>50.) {
           for (int iJet = 0; iJet < 25; ++iJet ) {
-            if (TightJets[iJet] && JetEt[iJet]>50 && dR(PhEta[iPhoton],PhPhi[iPhoton], JetEta[iJet], JetPhi[iJet]) < 0.3) {
+            if (JetEt[iJet]>50 && dR(PhEta[iPhoton],PhPhi[iPhoton], JetEta[iJet], JetPhi[iJet]) < 0.3) {
               if (PhEt[iPhoton]<0.5*JetEt[iJet]) {
                 passIso = false;
+                if (TightJets[iJet]) passIso_tight=false;
                 if (dumpIsoInfo) {
                   sprintf(messageBuffer, "Photon number %d failed isolation with Jet number %d  in run number %d lumi section %d event number %lld\n", iPhoton, iJet, runno, lumiblock, evtno);
                   outTextFile << messageBuffer;
@@ -499,7 +526,7 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
               }
             }
           }
-          if (!passIso) continue;
+          if (!passIso_tight) continue;
 
           // Throw out photon if there's a photon/muon overlap
           for (int iMuon = 0; iMuon < 25; ++iMuon ) {
@@ -509,10 +536,11 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
                 outTextFile << messageBuffer;
               }
               passIso = false;
+              passIso_tight = false;
               break;
             }
           }
-          if (!passIso) continue;
+          if (!passIso_tight) continue;
 
           // Throw out photon if there's a photon/electron overlap
           for (int iElectron = 0; iElectron < 25; ++iElectron ) {
@@ -522,21 +550,27 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
                 outTextFile << messageBuffer;
               }
               passIso = false;
+              passIso_tight = false;
               break;
             }
           }
-          if (!passIso) continue;
+          if (!passIso_tight) continue;
 
           if (debugFlag) cout << "    PhEt for photon number " << iPhoton << " is: " << PhEt[iPhoton] << endl;
-          ST += PhEt[iPhoton];
-          multiplicity+=1;
+
+          ST_tight += PhEt[iPhoton];
+          multiplicity_tight+=1;
+          Px_tight += PhPx[iPhoton];
+          Py_tight += PhPy[iPhoton];
+          if (passIso) {
+            ST += PhEt[iPhoton];
+            multiplicity+=1;
+            Px += PhPx[iPhoton];
+            Py += PhPy[iPhoton];
+          }
           if (debugFlag && dumpIsoInfo) {
             sprintf(messageBuffer, "Photon number %d passed isolation in run number %d lumi section %d event number %lld.\n      It had Px=%f and Py=%f\n", iPhoton, runno, lumiblock, evtno, PhPx[iPhoton], PhPy[iPhoton]);
             outTextFile << messageBuffer;
-          }
-          Px += PhPx[iPhoton];
-          Py += PhPy[iPhoton];
-          if (debugFlag && dumpIsoInfo) {
             sprintf(messageBuffer, "   Cumulative: Px=%f and Py=%f\n", Px, Py);
             outTextFile << messageBuffer;
           }
@@ -549,17 +583,20 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
     if (eventHasMuon) {
       for (int iMuon = 0; iMuon < 25; ++iMuon) {
         passIso=true;
+        passIso_tight=true;
         if (MuEt[iMuon]>50. && MuPFdBiso[iMuon]<0.15) {
           if (debugFlag) cout << "    MuEt for muon number " << iMuon << " is: " << MuEt[iMuon] << endl;
           ST += MuEt[iMuon];
           multiplicity+=1;
+          Px += MuPx[iMuon];
+          Py += MuPy[iMuon];
+          ST_tight += MuEt[iMuon];
+          multiplicity_tight+=1;
+          Px_tight += MuPx[iMuon];
+          Py_tight += MuPy[iMuon];
           if (debugFlag && dumpIsoInfo) {
             sprintf(messageBuffer, "Muon number %d passed isolation in run number %d lumi section %d event number %lld.\n       It had Px=%f and Py=%f\n", iMuon, runno, lumiblock, evtno, MuPx[iMuon], MuPy[iMuon]);
             outTextFile << messageBuffer;
-          }
-          Px += MuPx[iMuon];
-          Py += MuPy[iMuon];
-          if (debugFlag && dumpIsoInfo) {
             sprintf(messageBuffer, "   Cumulative: Px=%f and Py=%f\n", Px, Py);
             outTextFile << messageBuffer;
           }
@@ -571,27 +608,41 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
 
     //debug info and big ST printing
     if (debugFlag) cout << "    Met from PAT collection is: " << Met << endl;
-    STMHTnoMET = ST + OurMet;
-    ST += Met;
     OurMet = std::sqrt(Px*Px + Py*Py);
+    OurMet_tight = std::sqrt(Px_tight*Px_tight + Py_tight*Py_tight);
     if (debugFlag) cout << "    Met calculated according to my recipe is: " << OurMet << endl;
+    STMHTnoMET = ST + OurMet;
+    STMHTnoMET_tight = ST_tight + OurMet_tight;
+    ST += Met;
+    ST_tight += Met;
     stHist.Fill(ST);
-    stHistMHT.Fill(STMHTnoMET);
+    stHist_tight.Fill(ST_tight);
+    stHistMHT_tight.Fill(STMHTnoMET_tight);
     for (int iHist = 0; iHist<multMax-2; ++iHist) {
       if (multiplicity == iHist+2) stExcHist[iHist]->Fill(ST);
       if (multiplicity >= iHist+2) stIncHist[iHist]->Fill(ST);
+      if (multiplicity_tight == iHist+2) stExcHist_tight[iHist]->Fill(ST_tight);
+      if (multiplicity_tight >= iHist+2) stIncHist_tight[iHist]->Fill(ST_tight);
     }
     for (int iHist = 0; iHist<multMax-2; ++iHist) {
       if (multiplicity == iHist+2) stExcHistMHT[iHist]->Fill(STMHTnoMET);
       if (multiplicity >= iHist+2) stIncHistMHT[iHist]->Fill(STMHTnoMET);
+      if (multiplicity_tight == iHist+2) stExcHistMHT_tight[iHist]->Fill(STMHTnoMET_tight);
+      if (multiplicity_tight >= iHist+2) stIncHistMHT_tight[iHist]->Fill(STMHTnoMET_tight);
     }
     METvsMHT.Fill(OurMet,Met);
+    METvsMHT_tight.Fill(OurMet_tight,Met);
     if (multiplicity>=2){
       METvsMHTinc2.Fill(OurMet,Met);
+      METvsMHTinc2_tight.Fill(OurMet_tight,Met);
       if (eventHasMuon)                                           METvsMHTinc2hasMuon.Fill(OurMet, Met);
       if (eventHasPhoton)                                         METvsMHTinc2hasPhoton.Fill(OurMet, Met);
       if (eventHasElectron)                                       METvsMHTinc2hasElectron.Fill(OurMet, Met);
       if (!eventHasMuon && !eventHasPhoton && !eventHasElectron)  METvsMHTinc2onlyJets.Fill(OurMet, Met);
+      if (eventHasMuon)                                           METvsMHTinc2hasMuon.Fill(OurMet_tight, Met);
+      if (eventHasPhoton)                                         METvsMHTinc2hasPhoton.Fill(OurMet_tight, Met);
+      if (eventHasElectron)                                       METvsMHTinc2hasElectron.Fill(OurMet_tight, Met);
+      if (!eventHasMuon && !eventHasPhoton && !eventHasElectron)  METvsMHTinc2onlyJets.Fill(OurMet_tight, Met);
     }
     if (dumpIsoInfo && fabs(OurMet-Met)>300) {
       sprintf(messageBuffer, "MET-MHT is %f in run number %d lumi section %d event number %lld. ST is %f and multiplicity is %d\n", Met-OurMet, runno, lumiblock, evtno, ST, multiplicity);
@@ -600,9 +651,9 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
     }
 
 
-    // dump info on events with
+    // dump info on events with very big ST
     if (multiplicity>=2 && ST>5500 && dumpBigEvents) {
-      sprintf(messageBuffer, "In run number %d lumi section %d event number %lld ST is %f and multiplicity is %d\n", runno, lumiblock, evtno, ST, multiplicity);
+      sprintf(messageBuffer, "In run number %d lumi section %d event number %lld: ST is %f, ST_tight is %f, and multiplicity is %d\n", runno, lumiblock, evtno, ST, ST_tight, multiplicity);
       outTextFile << messageBuffer;
       for (int j=0; j<25; ++j) {
         if(JetEt[j]>0.000) {
@@ -637,6 +688,12 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
       sprintf(messageBuffer, "    our Py is=%f\n", Py);
       outTextFile << messageBuffer;
       sprintf(messageBuffer, "    our MHT is=%f\n", OurMet);
+      outTextFile << messageBuffer;
+      sprintf(messageBuffer, "    our Px_tight is=%f\n", Px_tight);
+      outTextFile << messageBuffer;
+      sprintf(messageBuffer, "    our Py_tight is=%f\n", Py_tight);
+      outTextFile << messageBuffer;
+      sprintf(messageBuffer, "    our MHT_tight is=%f\n", OurMet_tight);
       outTextFile << messageBuffer;
       sprintf(messageBuffer, "    MET is=%f\n", Met);
       outTextFile << messageBuffer;
@@ -704,7 +761,9 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
   TFile* outRootFile = new TFile(outFilename.c_str(), "RECREATE");
   outRootFile->cd();
   outRootFile->mkdir("ST");
+  outRootFile->mkdir("ST_tight");
   outRootFile->mkdir("MET-MHT");
+  outRootFile->mkdir("MET-MHT_tight");
   outRootFile->mkdir("Isolation");
 
   outRootFile->cd("ST");
@@ -719,6 +778,18 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
     stIncHistMHT[iHist]->Write();
   }
 
+  outRootFile->cd("ST_tight");
+  stHist_tight.Write();
+  for (int iHist = 0; iHist<multMax-2; ++iHist) {
+    stExcHist_tight[iHist]->Write();
+    stIncHist_tight[iHist]->Write();
+  }
+  stHistMHT_tight.Write();
+  for (int iHist = 0; iHist<multMax-2; ++iHist) {
+    stExcHistMHT_tight[iHist]->Write();
+    stIncHistMHT_tight[iHist]->Write();
+  }
+
   outRootFile->cd("MET-MHT");
   METvsMHT.Write();
   METvsMHTinc2.Write();
@@ -726,6 +797,12 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
   METvsMHTinc2hasPhoton.Write();
   METvsMHTinc2hasElectron.Write();
   METvsMHTinc2onlyJets.Write();
+  METvsMHT_tight.Write();
+  METvsMHTinc2_tight.Write();
+  METvsMHTinc2hasMuon_tight.Write();
+  METvsMHTinc2hasPhoton_tight.Write();
+  METvsMHTinc2hasElectron_tight.Write();
+  METvsMHTinc2onlyJets_tight.Write();
 
   outRootFile->cd("Isolation");
   MuonJetIso1.Write();
