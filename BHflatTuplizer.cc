@@ -640,7 +640,7 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
           passMetCut_tight=true;
         }
         else {
-          sprintf(messageBuffer, "   This event had MET/HT = %f so it failed the cut\n", (Met/ST));
+          sprintf(messageBuffer, "Event number %lld failed the MET cut in run number %d lumi section %d.\n       It had MET/HT=%f \n", evtno, runno, lumiblock, (Met/ST_tight));
           outTextFile << messageBuffer;
           passMetCut_tight=false;
         }
