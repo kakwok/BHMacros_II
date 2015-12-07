@@ -23,7 +23,7 @@ if argv[4] == "useMET" :
     f1_exc3 = TF1("f1_exc3", "[0]/([1]*x)**[2]", 1000, 7000)
     f2_exc3 = TF1("f2_exc3", "([0]*(1+x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, 7000)
     f3_exc3 = TF1("f3_exc3", "[0]/([1] + [2]*x + x**2)**[3]", 1000, 7000)
-    fLow=TF1("fLow", "[0]*(2*[1]/([2]*x)**[3]-[4]/([5] + [6]*x + x**2)**[7])", 1000, 7000)
+    #fLow=TF1("fLow", "[0]*(2*[1]/([2]*x)**[3]-[4]/([5] + [6]*x + x**2)**[7])", 1000, 7000)
 if argv[4] == "useMHT" :
     f1MHT = TF1("f1MHT", "[0]/([1]*x)**[2]", 1000, 7000)
     f2MHT = TF1("f2MHT", "([0]*(1+x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, 7000)
@@ -61,11 +61,9 @@ for i in range(2,4):
                 f1.SetLineStyle(6)
                 f2.SetLineColor(kGreen)
                 f2.SetLineStyle(6)
-                f3.SetLineColor(kBlue)
+                f3.SetLineColor(kMagenta)
                 f3.SetLineStyle(6)
-                fLow.SetParameters(1., f1.GetParameter(0), f1.GetParameter(1), f1.GetParameter(2), f3.GetParameter(0), f3.GetParameter(1), f3.GetParameter(2), f3.GetParameter(3))
-                fLow.SetLineColor(kBlue)
-                fLow.SetLineStyle(6)
+                #fLow.SetParameters(1., f1.GetParameter(0), f1.GetParameter(1), f1.GetParameter(2), f3.GetParameter(0), f3.GetParameter(1), f3.GetParameter(2), f3.GetParameter(3))
 
             if i==3:
                 print "got into the exc3 fitting loop!"
@@ -85,8 +83,14 @@ for i in range(2,4):
                 f1_exc3.SetLineStyle(4)
                 f2_exc3.SetLineColor(kCyan)
                 f2_exc3.SetLineStyle(4)
-                f3_exc3.SetLineColor(kMagenta)
+                f3_exc3.SetLineColor(kBlue)
                 f3_exc3.SetLineStyle(4)
+                #print "f1 has value " + str(f1.Eval(6500)) + " at ST=6500"
+                #print "f2 has value " + str(f2.Eval(6500)) + " at ST=6500"
+                #print "f3 has value " + str(f3.Eval(6500)) + " at ST=6500"
+                #print "f1_exc3 has value " + str(f1_exc3.Eval(6500)) + " at ST=6500"
+                #print "f2_exc3 has value " + str(f2_exc3.Eval(6500)) + " at ST=6500"
+                #print "f3_exc3 has value " + str(f3_exc3.Eval(6500)) + " at ST=6500"
 
         if argv[4] == "useMHT" :
             if i==2:
@@ -157,22 +161,21 @@ for j in range(2,12):
         for normbin in range(lowerNormBin, upperNormBin):
             normBinTotal+=stExcMEThist.GetBinContent(normbin)
         normfactor =  (normBinTotal/f1.Integral(lowerNormEdge, upperNormEdge))*stExcMEThist.GetXaxis().GetBinWidth(upperNormBin) # this assumes all the bins have the same width.
-        normfactor_exc3 =  (normBinTotal/f1_exc3.Integral(lowerNormEdge, upperNormEdge))*stExcMEThist.GetXaxis().GetBinWidth(upperNormBin)
+        normfactor_exc3 =  (normBinTotal/f3_exc3.Integral(lowerNormEdge, upperNormEdge))*stExcMEThist.GetXaxis().GetBinWidth(upperNormBin)
         print "normalization factor is: %f" % normfactor
         f1Normalized = f1.Clone()
         f1Normalized.SetParameter(0, f1.GetParameter(0)*normfactor)
+        print "f1Normalized has parameters" + " " + str(f1Normalized.GetParameter(0)) + " " + str(f1Normalized.GetParameter(1)) + " " + str(f1Normalized.GetParameter(2))
         f1Normalized.Draw("SAME")
         f3Normalized = f3.Clone()
         f3Normalized.SetParameter(0, f3.GetParameter(0)*normfactor)
         f3Normalized.Draw("SAME")
-        fLowNormalized=fLow.Clone()
-        fLowNormalized.SetParameter(0, fLow.GetParameter(0)*normfactor)
-        fLowNormalized.Draw("SAME")
         f2Normalized = f2.Clone()
         f2Normalized.SetParameter(0, f2.GetParameter(0)*normfactor)
         f2Normalized.Draw("SAME")
         f1_exc3Normalized = f1_exc3.Clone()
         f1_exc3Normalized.SetParameter(0, f1_exc3.GetParameter(0)*normfactor_exc3)
+        print "f1_exc3Normalized has parameters" + " " + str(f1_exc3Normalized.GetParameter(0)) + " " + str(f1_exc3Normalized.GetParameter(1)) + " " + str(f1_exc3Normalized.GetParameter(2))
         f1_exc3Normalized.Draw("SAME")
         f2_exc3Normalized = f2_exc3.Clone()
         f2_exc3Normalized.SetParameter(0, f2_exc3.GetParameter(0)*normfactor_exc3)
@@ -180,6 +183,13 @@ for j in range(2,12):
         f3_exc3Normalized = f3_exc3.Clone()
         f3_exc3Normalized.SetParameter(0, f3_exc3.GetParameter(0)*normfactor_exc3)
         f3_exc3Normalized.Draw("SAME")
+        fLow=TF1("fLow", "(2*[0]/(([1]*x)**[2]))-([3]/([4] + [5]*x + x**2)**[6])", 1000, 7000)
+
+        fLow.SetParameters(f1.GetParameter(0)*normfactor, f1.GetParameter(1), f1.GetParameter(2), f3_exc3.GetParameter(0)*normfactor_exc3, f3_exc3.GetParameter(1), f3_exc3.GetParameter(2),f3_exc3.GetParameter(3) )
+        print "fLow has parameters" + " " + str(fLow.GetParameter(0)) + " " + str(fLow.GetParameter(1)) + " " + str(fLow.GetParameter(2)) + " " + str(fLow.GetParameter(3)) + " " + str(fLow.GetParameter(4)) + " " + str(fLow.GetParameter(5))
+        fLow.SetLineColor(kBlue)
+        fLow.SetLineStyle(6)
+        fLow.Draw("SAME")
 
     if argv[4] == "useMHT" :
         stExcMHThist.GetXaxis().SetRangeUser(1000, 7000)
@@ -293,7 +303,7 @@ for j in range(2,12):
         for normbin in range(lowerNormBin, upperNormBin):
             normBinTotal+=stIncMEThist.GetBinContent(normbin)
         normfactorMET =  (normBinTotal/f1.Integral(lowerNormEdge, upperNormEdge))*stIncMEThist.GetXaxis().GetBinWidth(upperNormBin) # this assumes all the bins have the same width.
-        normfactorMET_exc3 =  (normBinTotal/f1_exc3.Integral(lowerNormEdge, upperNormEdge))*stIncMEThist.GetXaxis().GetBinWidth(upperNormBin) # this assumes all the bins have the same width.
+        normfactorMET_exc3 =  (normBinTotal/f3_exc3.Integral(lowerNormEdge, upperNormEdge))*stIncMEThist.GetXaxis().GetBinWidth(upperNormBin) # this assumes all the bins have the same width.
         print "normalization factor is: %f" % normfactor
         f1Normalized = f1.Clone()
         f1Normalized.SetParameter(0, f1.GetParameter(0)*normfactorMET)
@@ -301,6 +311,9 @@ for j in range(2,12):
         f2Normalized = f2.Clone()
         f2Normalized.SetParameter(0, f2.GetParameter(0)*normfactorMET)
         f2Normalized.Draw("SAME")
+        f3Normalized = f3.Clone()
+        f3Normalized.SetParameter(0, f3.GetParameter(0)*normfactorMET)
+        f3Normalized.Draw("SAME")
         f1_exc3Normalized = f1_exc3.Clone()
         f1_exc3Normalized.SetParameter(0, f1_exc3.GetParameter(0)*normfactorMET_exc3)
         f1_exc3Normalized.Draw("SAME")
@@ -310,7 +323,12 @@ for j in range(2,12):
         f3_exc3Normalized = f3_exc3.Clone()
         f3_exc3Normalized.SetParameter(0, f3_exc3.GetParameter(0)*normfactorMET_exc3)
         f3_exc3Normalized.Draw("SAME")
+        fLow=TF1("fLow", "(2*[0]/(([1]*x)**[2]))-([3]/([4] + [5]*x + x**2)**[6])", 1000, 7000)
 
+        fLow.SetParameters(f1.GetParameter(0)*normfactorMET, f1.GetParameter(1), f1.GetParameter(2), f3_exc3.GetParameter(0)*normfactorMET_exc3, f3_exc3.GetParameter(1), f3_exc3.GetParameter(2),f3_exc3.GetParameter(3) )
+        fLow.SetLineColor(kBlue)
+        fLow.SetLineStyle(6)
+        fLow.Draw("SAME")
         outputForLimits = open("output/%s_Inclusive%i.txt"%(argv[2],j), "w")
         outputForLimits.write(" STMin    ::   Observed Data   ::   Expected Bkg   ::  Shape Unc  \n")
         for stmin in range(20, 75):
@@ -328,12 +346,6 @@ for j in range(2,12):
             if not ((j>5 and stmin<23) or (j>8 and stmin<25) or (j>10 and stmin<26)):
                 outputForLimits.write("%i :: %i :: %f :: %f\n" % (stmin*100, observed, expected, shapeUnc))
         outputForLimits.close()
-        f3Normalized = f3.Clone()
-        f3Normalized.SetParameter(0, f3.GetParameter(0)*normfactorMET)
-        f3Normalized.Draw("SAME")
-        fLowNormalized=fLow.Clone()
-        fLowNormalized.SetParameter(0, fLow.GetParameter(0)*normfactorMET)
-        fLowNormalized.Draw("SAME")
 
     if argv[4] == "useMHT" :
         stIncMHThist.GetXaxis().SetRangeUser(1000, 7000)
