@@ -5,6 +5,7 @@
 #include "TFile.h"
 #include "TChain.h"
 #include "TH2F.h"
+#include "TProfile.h"
 #include <fstream>
 #include <string>
 #include <map>
@@ -23,7 +24,7 @@ std::map<unsigned, std::set<unsigned> > readEventList(char const* _fileName);
 
 void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string metListFilename) {
   std::map<unsigned, std::set<unsigned> > list = readEventList(metListFilename.c_str());
-  bool isData        = false ;
+  bool isData        = true ;
   bool debugFlag     = false ;
   int  eventsToDump  = 25    ;  // if debugFlag is true, then stop once the number of dumped events reaches eventsToDump
   bool dumpBigEvents = true  ;
@@ -48,18 +49,26 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
   TH2F METvsMHTinc2hasPhoton_tight         = TH2F("METvsMHTinc2hasPhoton_tight"         ,  "METvsMHTinc2hasPhoton_tight"     ,  1000,  0.,  20000.,  1000,  0.,  20000.);
   TH2F METvsMHTinc2hasElectron_tight       = TH2F("METvsMHTinc2hasElectron_tight"       ,  "METvsMHTinc2hasElectron_tight"   ,  1000,  0.,  20000.,  1000,  0.,  20000.);
   TH2F METvsMHTinc2onlyJets_tight          = TH2F("METvsMHTinc2onlyJets_tight"          ,  "METvsMHTinc2onlyJets_tight"      ,  1000,  0.,  20000.,  1000,  0.,  20000.);
-  TProfile METvsSumET                      = TH2F("METvsSumET"                          ,  "METvsSumET"                      ,  1000,  0.,  14000.);
-  TProfile METvsSumETinc2                  = TProfile("METvsSumETinc2"                  ,  "METvsSumETinc2"                  ,  1000,  0.,  14000.);
-  TProfile METvsSumETinc2hasMuon           = TProfile("METvsSumETinc2hasMuon"           ,  "METvsSumETinc2hasMuon"           ,  1000,  0.,  14000.);
-  TProfile METvsSumETinc2hasPhoton         = TProfile("METvsSumETinc2hasPhoton"         ,  "METvsSumETinc2hasPhoton"         ,  1000,  0.,  14000.);
-  TProfile METvsSumETinc2hasElectron       = TProfile("METvsSumETinc2hasElectron"       ,  "METvsSumETinc2hasElectron"       ,  1000,  0.,  14000.);
-  TProfile METvsSumETinc2onlyJets          = TProfile("METvsSumETinc2onlyJets"          ,  "METvsSumETinc2onlyJets"          ,  1000,  0.,  14000.);
-  TProfile METvsSumET_tight                = TProfile("METvsSumET_tight"                ,  "METvsSumET_tight"                ,  1000,  0.,  14000.);
-  TProfile METvsSumETinc2_tight            = TProfile("METvsSumETinc2_tight"            ,  "METvsSumETinc2_tight"            ,  1000,  0.,  14000.);
-  TProfile METvsSumETinc2hasMuon_tight     = TProfile("METvsSumETinc2hasMuon_tight"     ,  "METvsSumETinc2hasMuon_tight"     ,  1000,  0.,  14000.);
-  TProfile METvsSumETinc2hasPhoton_tight   = TProfile("METvsSumETinc2hasPhoton_tight"   ,  "METvsSumETinc2hasPhoton_tight"   ,  1000,  0.,  14000.);
-  TProfile METvsSumETinc2hasElectron_tight = TProfile("METvsSumETinc2hasElectron_tight" ,  "METvsSumETinc2hasElectron_tight" ,  1000,  0.,  14000.);
-  TProfile METvsSumETinc2onlyJets_tight    = TProfile("METvsSumETinc2onlyJets_tight"    ,  "METvsSumETinc2onlyJets_tight"    ,  1000,  0.,  14000.);
+  TH1F METoverSumET                      = TH1F("METoverSumET"                      ,  "METoverSumET"                      ,  300,  0.,  3.);
+  TH1F METoverSumETinc2                  = TH1F("METoverSumETinc2"                  ,  "METoverSumETinc2"                  ,  300,  0.,  3.);
+  TH1F METoverSumETinc2hasMuon           = TH1F("METoverSumETinc2hasMuon"           ,  "METoverSumETinc2hasMuon"           ,  300,  0.,  3.);
+  TH1F METoverSumETinc2hasPhoton         = TH1F("METoverSumETinc2hasPhoton"         ,  "METoverSumETinc2hasPhoton"         ,  300,  0.,  3.);
+  TH1F METoverSumETinc2hasElectron       = TH1F("METoverSumETinc2hasElectron"       ,  "METoverSumETinc2hasElectron"       ,  300,  0.,  3.);
+  TH1F METoverSumETinc2onlyJets          = TH1F("METoverSumETinc2onlyJets"          ,  "METoverSumETinc2onlyJets"          ,  300,  0.,  3.);
+  TH1F METoverSumET_tight                = TH1F("METoverSumET_tight"                ,  "METoverSumET_tight"                ,  300,  0.,  3.);
+  TH1F METoverSumETinc2_tight            = TH1F("METoverSumETinc2_tight"            ,  "METoverSumETinc2_tight"            ,  300,  0.,  3.);
+  TH1F METoverSumETinc3_tight            = TH1F("METoverSumETinc3_tight"            ,  "METoverSumETinc3_tight"            ,  300,  0.,  3.);
+  TH1F METoverSumETinc4_tight            = TH1F("METoverSumETinc4_tight"            ,  "METoverSumETinc4_tight"            ,  300,  0.,  3.);
+  TH1F METoverSumETinc5_tight            = TH1F("METoverSumETinc5_tight"            ,  "METoverSumETinc5_tight"            ,  300,  0.,  3.);
+  TH1F METoverSumETinc6_tight            = TH1F("METoverSumETinc6_tight"            ,  "METoverSumETinc6_tight"            ,  300,  0.,  3.);
+  TH1F METoverSumETinc7_tight            = TH1F("METoverSumETinc7_tight"            ,  "METoverSumETinc7_tight"            ,  300,  0.,  3.);
+  TH1F METoverSumETinc8_tight            = TH1F("METoverSumETinc8_tight"            ,  "METoverSumETinc8_tight"            ,  300,  0.,  3.);
+  TH1F METoverSumETinc9_tight            = TH1F("METoverSumETinc9_tight"            ,  "METoverSumETinc9_tight"            ,  300,  0.,  3.);
+  TH1F METoverSumETinc10_tight            = TH1F("METoverSumETinc10_tight"            ,  "METoverSumETinc10_tight"            ,  300,  0.,  3.);
+  TH1F METoverSumETinc2hasMuon_tight     = TH1F("METoverSumETinc2hasMuon_tight"     ,  "METoverSumETinc2hasMuon_tight"     ,  300,  0.,  3.);
+  TH1F METoverSumETinc2hasPhoton_tight   = TH1F("METoverSumETinc2hasPhoton_tight"   ,  "METoverSumETinc2hasPhoton_tight"   ,  300,  0.,  3.);
+  TH1F METoverSumETinc2hasElectron_tight = TH1F("METoverSumETinc2hasElectron_tight" ,  "METoverSumETinc2hasElectron_tight" ,  300,  0.,  3.);
+  TH1F METoverSumETinc2onlyJets_tight    = TH1F("METoverSumETinc2onlyJets_tight"    ,  "METoverSumETinc2onlyJets_tight"    ,  300,  0.,  3.);
 
   TH1F MuonJetIso1             = TH1F("MuonJetIso1"             ,  "MuonJetIso1"             ,  300,   0.,  3);
   TH1F MuonJetIso2             = TH1F("MuonJetIso2"             ,  "MuonJetIso2"             ,  300,   0.,  3);
@@ -318,7 +327,7 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
     //TODO
     if ( isData &&
          (    !firedHLT_PFHT800_v2 || !passed_CSCTightHaloFilter
-    //if (    !firedHLT_PFHT800_v1 || !passed_CSCTightHaloFilter
+       //  (    !firedHLT_PFHT800_v1 || !passed_CSCTightHaloFilter
            || !passed_goodVertices || !passed_eeBadScFilter     )
                                                                   ) continue;
 
@@ -659,20 +668,30 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
           outTextFile << messageBuffer;
           passMetCut_tight=false;
         }
-        METvsSumET.Fill(ST,Met);
-        METvsSumET_tight.Fill(ST_tight,Met);
-        if (multiplicity>=2){
-          METvsSumETinc2.Fill(ST,Met);
-          METvsSumETinc2_tight.Fill(ST_tight,Met);
-          if (eventHasMuon)                                           METvsSumETinc2hasMuon.Fill(ST, Met);
-          if (eventHasPhoton)                                         METvsSumETinc2hasPhoton.Fill(ST, Met);
-          if (eventHasElectron)                                       METvsSumETinc2hasElectron.Fill(ST, Met);
-          if (!eventHasMuon && !eventHasPhoton && !eventHasElectron)  METvsSumETinc2onlyJets.Fill(ST, Met);
-          if (multiplicity_tight>=2) {
-            if (eventHasMuon)                                           METvsSumETinc2hasMuon_tight.Fill(ST_tight, Met);
-            if (eventHasPhoton)                                         METvsSumETinc2hasPhoton_tight.Fill(ST_tight, Met);
-            if (eventHasElectron)                                       METvsSumETinc2hasElectron_tight.Fill(ST_tight, Met);
-            if (!eventHasMuon && !eventHasPhoton && !eventHasElectron)  METvsSumETinc2onlyJets_tight.Fill(ST_tight, Met);
+        if (ST>1500) {
+          if (ST<3000) METoverSumET.Fill(Met/ST);
+          if (ST_tight>1500 && ST_tight<3000) METoverSumET_tight.Fill(Met/ST_tight);
+          if (multiplicity>=2){
+            METoverSumETinc2.Fill(Met/ST);
+            if (multiplicity_tight >=2 && ST_tight>1500 && ST_tight<3000)METoverSumETinc2_tight.Fill(Met/ST_tight);
+            if (multiplicity_tight >=3 && ST_tight>1500 && ST_tight<3000)METoverSumETinc3_tight.Fill(Met/ST_tight);
+            if (multiplicity_tight >=4 && ST_tight>1500 && ST_tight<3000)METoverSumETinc4_tight.Fill(Met/ST_tight);
+            if (multiplicity_tight >=5 && ST_tight>1500 && ST_tight<3000)METoverSumETinc5_tight.Fill(Met/ST_tight);
+            if (multiplicity_tight >=6 && ST_tight>1500 && ST_tight<3000)METoverSumETinc6_tight.Fill(Met/ST_tight);
+            if (multiplicity_tight >=7 && ST_tight>1500 && ST_tight<3000)METoverSumETinc7_tight.Fill(Met/ST_tight);
+            if (multiplicity_tight >=8 && ST_tight>1500 && ST_tight<3000)METoverSumETinc8_tight.Fill(Met/ST_tight);
+            if (multiplicity_tight >=9 && ST_tight>1500 && ST_tight<3000)METoverSumETinc9_tight.Fill(Met/ST_tight);
+            if (multiplicity_tight >=10 && ST_tight>1500 && ST_tight<3000)METoverSumETinc10_tight.Fill(Met/ST_tight);
+            if (eventHasMuon)                                           METoverSumETinc2hasMuon.Fill(Met/ST);
+            if (eventHasPhoton)                                         METoverSumETinc2hasPhoton.Fill(Met/ST);
+            if (eventHasElectron)                                       METoverSumETinc2hasElectron.Fill(Met/ST);
+            if (!eventHasMuon && !eventHasPhoton && !eventHasElectron)  METoverSumETinc2onlyJets.Fill(Met/ST);
+            if (multiplicity_tight>=2 && ST_tight>1500 && ST_tight<3000) {
+              if (eventHasMuon)                                           METoverSumETinc2hasMuon_tight.Fill(Met/ST_tight);
+              if (eventHasPhoton)                                         METoverSumETinc2hasPhoton_tight.Fill(Met/ST_tight);
+              if (eventHasElectron)                                       METoverSumETinc2hasElectron_tight.Fill(Met/ST_tight);
+              if (!eventHasMuon && !eventHasPhoton && !eventHasElectron)  METoverSumETinc2onlyJets_tight.Fill(Met/ST_tight);
+            }
           }
         }
         STMHTnoMET = ST + OurMet;
@@ -834,7 +853,6 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
   outRootFile->mkdir("ST");
   outRootFile->mkdir("ST_tight");
   outRootFile->mkdir("MET-MHT");
-  outRootFile->mkdir("MET-MHT_tight");
   outRootFile->mkdir("Isolation");
 
   outRootFile->cd("ST");
@@ -874,18 +892,26 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
   METvsMHTinc2hasPhoton_tight.Write();
   METvsMHTinc2hasElectron_tight.Write();
   METvsMHTinc2onlyJets_tight.Write();
-  METvsSumET.Write();
-  METvsSumETinc2.Write();
-  METvsSumETinc2hasMuon.Write();
-  METvsSumETinc2hasPhoton.Write();
-  METvsSumETinc2hasElectron.Write();
-  METvsSumETinc2onlyJets.Write();
-  METvsSumET_tight.Write();
-  METvsSumETinc2_tight.Write();
-  METvsSumETinc2hasMuon_tight.Write();
-  METvsSumETinc2hasPhoton_tight.Write();
-  METvsSumETinc2hasElectron_tight.Write();
-  METvsSumETinc2onlyJets_tight.Write();
+  METoverSumET.Write();
+  METoverSumETinc2.Write();
+  METoverSumETinc2hasMuon.Write();
+  METoverSumETinc2hasPhoton.Write();
+  METoverSumETinc2hasElectron.Write();
+  METoverSumETinc2onlyJets.Write();
+  METoverSumET_tight.Write();
+  METoverSumETinc2_tight.Write();
+  METoverSumETinc3_tight.Write();
+  METoverSumETinc4_tight.Write();
+  METoverSumETinc5_tight.Write();
+  METoverSumETinc6_tight.Write();
+  METoverSumETinc7_tight.Write();
+  METoverSumETinc8_tight.Write();
+  METoverSumETinc9_tight.Write();
+  METoverSumETinc10_tight.Write();
+  METoverSumETinc2hasMuon_tight.Write();
+  METoverSumETinc2hasPhoton_tight.Write();
+  METoverSumETinc2hasElectron_tight.Write();
+  METoverSumETinc2onlyJets_tight.Write();
 
   outRootFile->cd("Isolation");
   MuonJetIso1.Write();
