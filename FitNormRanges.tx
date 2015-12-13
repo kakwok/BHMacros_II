@@ -1,7 +1,7 @@
-FitRange,  exc,  2,  1900, 2200
-NormRange, exc,  2,  1900, 2200
-NormRange, inc,  2,  1900, 2200
-FitRange,  exc,  3,  1900, 2200
+FitRange,  exc,  2,  1400, 2400
+NormRange, exc,  2,  1400, 2400
+NormRange, inc,  2,  1400, 2400
+FitRange,  exc,  3,  1400, 2400
 NormRange, inc,  3,  1900, 2200
 NormRange, exc,  3,  2100, 2400
 NormRange, inc,  4,  2100, 2400
