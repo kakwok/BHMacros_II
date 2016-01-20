@@ -24,12 +24,13 @@ std::map<unsigned, std::set<unsigned> > readEventList(char const* _fileName);
 
 void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string metListFilename) {
   std::map<unsigned, std::set<unsigned> > list = readEventList(metListFilename.c_str());
-  bool isData        = true ;
+  bool isData        = true  ;
   bool debugFlag     = false ;
   int  eventsToDump  = 25    ;  // if debugFlag is true, then stop once the number of dumped events reaches eventsToDump
   bool dumpBigEvents = true  ;
   bool dumpIsoInfo   = false ;
   int  nDumpedEvents = 0     ;
+  bool useMETcut     = false ;
 
   // define output textfile
   ofstream outTextFile;
@@ -345,6 +346,11 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
           }
         }
         if (!passMETfilterList) cout << "ERROR! This event should be filtered!" << endl;
+        if ( runno == 254790 && (lumiblock==211 || lumiblock==395) ) {
+          sprintf(messageBuffer, "Event in lumiblock that could not be filtered skipped: run number %d lumi section %d event number %%lld\n", runno, lumiblock, evtno);
+          outTextFile << messageBuffer;
+          continue;
+        }
 
         // apply isolation requirement and calculate ST and MHT.
         //Jets
@@ -658,9 +664,9 @@ void BHflatTuplizer(std::string inFilename, std::string outFilename, std::string
         OurMet = std::sqrt(Px*Px + Py*Py);
         OurMet_tight = std::sqrt(Px_tight*Px_tight + Py_tight*Py_tight);
         if (debugFlag) cout << "    Met calculated according to my recipe is: " << OurMet << endl;
-        if (2*ST>Met) passMetCut=true;
+        if (0.5*ST>Met || !useMETcut) passMetCut=true;
         else passMetCut=false;
-        if (2*ST_tight>Met) {
+        if (0.5*ST_tight>Met || !useMETcut) {
           passMetCut_tight=true;
         }
         else {
