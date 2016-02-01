@@ -57,4 +57,7 @@ e.g.:
 python fitSThists.py myBHflatTuple.root myOutputFile.root myFitAndNormRanges.txt useMET -b
 ```
 Your output histograms and textfiles for the combine tool will appear in
-the output directory.
+the output directory. i.e. 
+```
+mkdir ./output
+```
