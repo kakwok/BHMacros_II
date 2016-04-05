@@ -15,13 +15,19 @@ Funcs	     = {}
 PlotsFile = TFile(argv[1])
 PlotsDir = PlotsFile.Get("ST")
 OutFile = TFile("output/%s"%argv[2], "RECREATE")
+chi2graph_f1 = TGraph()
+chi2graph_f2 = TGraph()
+chi2graph_f3 = TGraph()
+chi2graph_f1_exc3 = TGraph()
+chi2graph_f2_exc3 = TGraph()
+chi2graph_f3_exc3 = TGraph()
 fitNormRanges = FitAndNormRange(argv[3])
 fitNormRanges.showFitRanges()
 fitNormRanges.showNormRanges()
 
-def symmmetrize(f1,f2):
+def symmetrize(f1,f2):
     formula = "2*"+f1.GetExpFormula("p").Data() + "-" + f2.GetExpFormula("p").Data()
-    fname = "2*"+f1.GetName()+"_minus_+"f2.GetName()
+    fname = "2*"+f1.GetName()+"_minus_+"+f2.GetName()
     f1minusf2 = TF1(fname,formula,1000,7000)
     return f1minusf2
 
@@ -40,20 +46,29 @@ def getSymmetrizedFuntion(bestfit, functions, xlow, xup):
         diffs.append( difference )
         abs_diffs.append( abs(difference) )
         i+=1
-    print "The index of best fit is ", bestfit_pos 
-    print "Differences with best fit: ",abs_diffs
-    print "Largest differece is ",max(abs_diffs)
+   # print "The index of best fit is ", bestfit_pos 
+    print "Differences with best fit: ",diffs
+   # print "Largest differece is ",max(abs_diffs)
     fsym_pos = abs_diffs.index(max(abs_diffs))  
-    print "The index of fsym is ", fsym_pos
-
-    if( diffs(fsym_pos) > 0):
-        print "Best fit is greater then Symmetrized function"
-        return symmetrize( functions[bestfit_pos], functions[fsym_pos])
-    else:
-        print "Best fit is smaller then Symmetrized function"
-        return symmetrize( functions[bestfit_pos], functions[fsym_pos])
+   # print "The index of fsym is ", fsym_pos
+    print " %s is symmetrized with respect to %s" % ( functions[bestfit_pos].GetName(), functions[fsym_pos].GetName() )
+    return symmetrize( functions[bestfit_pos], functions[fsym_pos])
+    #if( diffs[fsym_pos] > 0):
+    #    print "Best fit is greater then the outlier function"
+    #    return symmetrize( functions[bestfit_pos], functions[fsym_pos])
+    #else:
+    #    print "Best fit is smaller then outlier function"
+    #    return symmetrize( functions[bestfit_pos], functions[fsym_pos])
         
-
+def getNormalizedFuntion(f, hist, xlowbin, xupbin, xlowedge, xupedge, binwidth):
+    normBinTotal = 0;
+    for normbin in range(xlowbin, xupbin):
+        normBinTotal+=hist.GetBinContent(normbin)  
+    normfactor =  (normBinTotal/f.Integral(xlowedge, xupedge))*binwidth # this assumes all the bins have the same width.
+    fNormalized = f.Clone()
+    fNormalized.SetRange(xlowedge, 14000)
+    fNormalized.SetParameter(0, f.GetParameter(0)*normfactor)
+    return fNormalized
 
 if argv[4] == "useMET" :
     f1 = TF1("f1", "[0]/([1]+x)**[2]", 1000, 7000)
@@ -156,11 +171,11 @@ print "The minimum chi2 is %s %.3f" % (Chi2List.index(min(Chi2List)),min(Chi2Lis
 print "This should be the same chi2 %.3f" % (Funcs[Chi2List.index(min(Chi2List))].GetChisquare() )
 
 for j in range(2,11):
-    # For exclusive STs
     if argv[4] == "useMET" :
         stExcMEThist=PlotsDir.Get("stExc%02iHist"%j)
         stIncMEThist=PlotsDir.Get("stInc%02iHist"%j)
     
+    # For exclusive STs
     STexcComparisons.append(TCanvas("stExc%02iCanvas"%j, "ST, N=%i"%j, 800, 800))
     STexcComparisons[j-2].cd()
     upperExcPads.append(TPad("Exc%02ipad"%j, "pad1", 0, 0.3, 1, 1.0))
@@ -180,52 +195,54 @@ for j in range(2,11):
         upperNormBin = stExcMEThist.GetXaxis().FindBin(float(fitNormRanges.getUpperNormBound("exc%i"%j)))
         lowerNormEdge = stExcMEThist.GetXaxis().GetBinLowEdge(lowerNormBin)
         upperNormEdge = stExcMEThist.GetXaxis().GetBinLowEdge(upperNormBin)
-        normBinTotal = 0;
-        for normbin in range(lowerNormBin, upperNormBin):
-            normBinTotal+=stExcMEThist.GetBinContent(normbin)
-        #normfactor =  (normBinTotal/f3.Integral(lowerNormEdge, upperNormEdge))*stExcMEThist.GetXaxis().GetBinWidth(upperNormBin) # this assumes all the bins have the same width.
-        normfactor =  (normBinTotal/f2.Integral(lowerNormEdge, upperNormEdge))*stExcMEThist.GetXaxis().GetBinWidth(upperNormBin) # this assumes all the bins have the same width.
-        normfactor_exc3 =  (normBinTotal/f2_exc3.Integral(lowerNormEdge, upperNormEdge))*stExcMEThist.GetXaxis().GetBinWidth(upperNormBin)
-        print "normalization factor is: %f" % normfactor
-        f1Normalized = f1.Clone()
-        f1Normalized.SetParameter(0, f1.GetParameter(0)*normfactor)
-        print "f1Normalized has parameters" + " " + str(f1Normalized.GetParameter(0)) + " " + str(f1Normalized.GetParameter(1)) + " " + str(f1Normalized.GetParameter(2))
+        binwidth      = stExcMEThist.GetXaxis().GetBinWidth(upperNormBin)
+
+        f1Normalized = getNormalizedFuntion( f1, stExcMEThist,lowerNormBin, upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        #print "f1Normalized has parameters" + " " + str(f1Normalized.GetParameter(0)) + " " + str(f1Normalized.GetParameter(1)) + " " + str(f1Normalized.GetParameter(2))
         f1Normalized.Draw("SAME")
-        f3Normalized = f3.Clone()
-        f3Normalized.SetParameter(0, f3.GetParameter(0)*normfactor)
-        f3Normalized.Draw("SAME")
-        f2Normalized = f2.Clone()
-        f2Normalized.SetParameter(0, f2.GetParameter(0)*normfactor)
+        f2Normalized = getNormalizedFuntion( f2, stExcMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        #print "f2Normalized has parameters" + " " + str(f2Normalized.GetParameter(0)) + " " + str(f2Normalized.GetParameter(1)) + " " + str(f2Normalized.GetParameter(2))
         f2Normalized.Draw("SAME")
-        f1_exc3Normalized = f1_exc3.Clone()
-        f1_exc3Normalized.SetParameter(0, f1_exc3.GetParameter(0)*normfactor_exc3)
-        print "f1_exc3Normalized has parameters" + " " + str(f1_exc3Normalized.GetParameter(0)) + " " + str(f1_exc3Normalized.GetParameter(1)) + " " + str(f1_exc3Normalized.GetParameter(2))
+        f3Normalized = getNormalizedFuntion( f3, stExcMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        #print "f3Normalized has parameters" + " " + str(f3Normalized.GetParameter(0)) + " " + str(f3Normalized.GetParameter(1)) + " " + str(f3Normalized.GetParameter(2))
+        f3Normalized.Draw("SAME")
+        f1_exc3Normalized = getNormalizedFuntion( f1_exc3, stExcMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        #print "f1_exc3Normalized has parameters" + " " + str(f1_exc3Normalized.GetParameter(0)) + " " + str(f1_exc3Normalized.GetParameter(1)) + " " + str(f1_exc3Normalized.GetParameter(2))
         f1_exc3Normalized.Draw("SAME")
-        f2_exc3Normalized = f2_exc3.Clone()
-        f2_exc3Normalized.SetParameter(0, f2_exc3.GetParameter(0)*normfactor_exc3)
+        f2_exc3Normalized = getNormalizedFuntion( f2_exc3, stExcMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        #print "f2_exc3Normalized has parameters" + " " + str(f2_exc3Normalized.GetParameter(0)) + " " + str(f2_exc3Normalized.GetParameter(1)) + " " + str(f2_exc3Normalized.GetParameter(2))
         f2_exc3Normalized.Draw("SAME")
-        f3_exc3Normalized = f3_exc3.Clone()
-        f3_exc3Normalized.SetParameter(0, f3_exc3.GetParameter(0)*normfactor_exc3)
+        f3_exc3Normalized = getNormalizedFuntion( f3_exc3, stExcMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        #print "f3_exc3Normalized has parameters" + " " + str(f3_exc3Normalized.GetParameter(0)) + " " + str(f3_exc3Normalized.GetParameter(1)) + " " + str(f3_exc3Normalized.GetParameter(2))
         f3_exc3Normalized.Draw("SAME")
-        fLow=TF1("fLow", "(2*([0]*(1+x)^[1])/(x**([2]+[3]*TMath::Log(x))))-([4]/([5]*x)**[6])", 1000, 7000)
 
-        fLow.SetParameters(f2.GetParameter(0)*normfactor, f2.GetParameter(1), f2.GetParameter(2), f2.GetParameter(3), f1.GetParameter(0)*normfactor, f1.GetParameter(1), f1.GetParameter(2) )
-        if j==2:
-            print "fLow has parameters" + " " + str(fLow.GetParameter(0)) + " " + str(fLow.GetParameter(1)) + " " + str(fLow.GetParameter(2)) + " " + str(fLow.GetParameter(3)) + " " + str(fLow.GetParameter(4)) + " " + str(fLow.GetParameter(5))
-            print "The chi2 for %s is %s" %( f1Normalized.GetName()	,stExcMEThist.Chisquare(f1Normalized,"R"))
-	    print "The chi2 for %s is %s" %( f2Normalized.GetName()	,stExcMEThist.Chisquare(f2Normalized,"R"))
-	    print "The chi2 for %s is %s" %( f3Normalized.GetName()	,stExcMEThist.Chisquare(f3Normalized,"R"))
-	    print "The chi2 for %s is %s" %( f1_exc3Normalized.GetName()	,stExcMEThist.Chisquare(f1_exc3Normalized,"R"))
-	    print "The chi2 for %s is %s" %( f2_exc3Normalized.GetName()	,stExcMEThist.Chisquare(f2_exc3Normalized,"R"))
-	    print "The chi2 for %s is %s" %( f3_exc3Normalized.GetName()	,stExcMEThist.Chisquare(f3_exc3Normalized,"R"))
+        chi2_f1      = stExcMEThist.Chisquare(f1Normalized,"R")/ f1Normalized.GetNDF()
+        chi2_f2      = stExcMEThist.Chisquare(f2Normalized,"R")/ f2Normalized.GetNDF()
+        chi2_f3      = stExcMEThist.Chisquare(f3Normalized,"R")/ f3Normalized.GetNDF()
+        chi2_f1_exc3 = stExcMEThist.Chisquare(f1_exc3Normalized,"R")/f1_exc3Normalized.GetNDF()
+        chi2_f2_exc3 = stExcMEThist.Chisquare(f2_exc3Normalized,"R")/f2_exc3Normalized.GetNDF()
+        chi2_f3_exc3 = stExcMEThist.Chisquare(f3_exc3Normalized,"R")/f3_exc3Normalized.GetNDF()
+       
+        #print "Printing info of Exclusive %i fittings:" % j  
+        #print "The chi2/Ndof for %s is %s" %( f1Normalized.GetName()	        , chi2_f1    ) 
+	#print "The chi2/Ndof for %s is %s" %( f2Normalized.GetName()	        , chi2_f2    )
+	#print "The chi2/Ndof for %s is %s" %( f3Normalized.GetName()	        , chi2_f3    )
+	#print "The chi2/Ndof for %s is %s" %( f1_exc3Normalized.GetName()	, chi2_f1_exc3)
+	#print "The chi2/Ndof for %s is %s" %( f2_exc3Normalized.GetName()	, chi2_f2_exc3)
+	#print "The chi2/Ndof for %s is %s" %( f3_exc3Normalized.GetName()	, chi2_f3_exc3)
 
+        chi2_list = [chi2_f1, chi2_f2, chi2_f3, chi2_f1_exc3, chi2_f2_exc3, chi2_f3_exc3]
+        functions = [f1Normalized,f2Normalized,f3Normalized,f1_exc3Normalized,f2_exc3Normalized,f3_exc3Normalized ]
+        fbest    = f2Normalized
+        fLow     = getSymmetrizedFuntion( fbest, functions, upperNormEdge, 14000)
+ 
         fLow.SetLineColor(kBlue)
         fLow.SetLineStyle(6)
         fLow.Draw("SAME")
 
    
-    legend = TLegend(0.35, 0.68, 0.58, 0.85, "Exclusive ST distributions for n=%i"%j, "brNDC")
-    legend.SetTextSize(0.02);
+    legend = TLegend(0.35, 0.68, 0.7, 0.85, "Exclusive ST distributions for n=%i"%j, "brNDC")
+    legend.SetTextSize(0.04);
     legend.SetLineColor(1);
     legend.SetLineWidth(1);
     legend.SetFillStyle(1001);
@@ -279,34 +296,54 @@ for j in range(2,11):
         upperNormBin = stIncMEThist.GetXaxis().FindBin(float(fitNormRanges.getUpperNormBound("inc%i"%j)))
         lowerNormEdge = stIncMEThist.GetXaxis().GetBinLowEdge(lowerNormBin)
         upperNormEdge = stIncMEThist.GetXaxis().GetBinLowEdge(upperNormBin)
-        normBinTotal = 0;
-        for normbin in range(lowerNormBin, upperNormBin):
-            normBinTotal+=stIncMEThist.GetBinContent(normbin)
-        normfactorMET =  (normBinTotal/f2.Integral(lowerNormEdge, upperNormEdge))*stIncMEThist.GetXaxis().GetBinWidth(upperNormBin) # this assumes all the bins have the same width.
-        normfactorMET_exc3 =  (normBinTotal/f2_exc3.Integral(lowerNormEdge, upperNormEdge))*stIncMEThist.GetXaxis().GetBinWidth(upperNormBin) # this assumes all the bins have the same width.
-        #print "normalization factor is: %f" % normfactor
-        f1Normalized = f1.Clone()
-        f1Normalized.SetParameter(0, f1.GetParameter(0)*normfactorMET)
-        f1Normalized.Draw("SAME")
-        f2Normalized = f2.Clone()
-        f2Normalized.SetParameter(0, f2.GetParameter(0)*normfactorMET)
-        f2Normalized.Draw("SAME")
-        f3Normalized = f3.Clone()
-        f3Normalized.SetParameter(0, f3.GetParameter(0)*normfactorMET)
-        f3Normalized.Draw("SAME")
-        f1_exc3Normalized = f1_exc3.Clone()
-        f1_exc3Normalized.SetParameter(0, f1_exc3.GetParameter(0)*normfactorMET_exc3)
-        f1_exc3Normalized.Draw("SAME")
-        f2_exc3Normalized = f2_exc3.Clone()
-        f2_exc3Normalized.SetParameter(0, f2_exc3.GetParameter(0)*normfactorMET_exc3)
-        f2_exc3Normalized.Draw("SAME")
-        f3_exc3Normalized = f3_exc3.Clone()
-        f3_exc3Normalized.SetParameter(0, f3_exc3.GetParameter(0)*normfactorMET_exc3)
-        f3_exc3Normalized.Draw("SAME")
-        fLow=TF1("fLow", "(2*([0]*(1+x)^[1])/(x**([2]+[3]*TMath::Log(x))))-([4]/([5]*x)**[6])", 1000, 7000)
 
-        fLow.SetParameters(f2.GetParameter(0)*normfactorMET, f2.GetParameter(1), f2.GetParameter(2), f2.GetParameter(3), f1.GetParameter(0)*normfactorMET, f1.GetParameter(1), f1.GetParameter(2) )
-        #print "fLow has parameters" + " " + str(fLow.GetParameter(0)) + " " + str(fLow.GetParameter(1)) + " " + str(fLow.GetParameter(2)) + " " + str(fLow.GetParameter(3)) + " " + str(fLow.GetParameter(4)) + " " + str(fLow.GetParameter(5))
+        f1Normalized = getNormalizedFuntion( f1, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        #print "f1Normalized has parameters" + " " + str(f1Normalized.GetParameter(0)) + " " + str(f1Normalized.GetParameter(1)) + " " + str(f1Normalized.GetParameter(2))
+        f1Normalized.Draw("SAME")
+        f2Normalized = getNormalizedFuntion( f2, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        #print "f2Normalized has parameters" + " " + str(f2Normalized.GetParameter(0)) + " " + str(f2Normalized.GetParameter(1)) + " " + str(f2Normalized.GetParameter(2))
+        f2Normalized.Draw("SAME")
+        f3Normalized = getNormalizedFuntion( f3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        #print "f3Normalized has parameters" + " " + str(f3Normalized.GetParameter(0)) + " " + str(f3Normalized.GetParameter(1)) + " " + str(f3Normalized.GetParameter(2))
+        f3Normalized.Draw("SAME")
+        f1_exc3Normalized = getNormalizedFuntion( f1_exc3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        #print "f1_exc3Normalized has parameters" + " " + str(f1_exc3Normalized.GetParameter(0)) + " " + str(f1_exc3Normalized.GetParameter(1)) + " " + str(f1_exc3Normalized.GetParameter(2))
+        f1_exc3Normalized.Draw("SAME")
+        f2_exc3Normalized = getNormalizedFuntion( f2_exc3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        #print "f2_exc3Normalized has parameters" + " " + str(f2_exc3Normalized.GetParameter(0)) + " " + str(f2_exc3Normalized.GetParameter(1)) + " " + str(f2_exc3Normalized.GetParameter(2))
+        f2_exc3Normalized.Draw("SAME")
+        f3_exc3Normalized = getNormalizedFuntion( f3_exc3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        #print "f3_exc3Normalized has parameters" + " " + str(f3_exc3Normalized.GetParameter(0)) + " " + str(f3_exc3Normalized.GetParameter(1)) + " " + str(f3_exc3Normalized.GetParameter(2))
+        f3_exc3Normalized.Draw("SAME")
+
+        chi2_f1      = stIncMEThist.Chisquare(f1Normalized,"R")/ f1Normalized.GetNDF()
+        chi2_f2      = stIncMEThist.Chisquare(f2Normalized,"R")/ f2Normalized.GetNDF()
+        chi2_f3      = stIncMEThist.Chisquare(f3Normalized,"R")/ f3Normalized.GetNDF()
+        chi2_f1_exc3 = stIncMEThist.Chisquare(f1_exc3Normalized,"R")/f1_exc3Normalized.GetNDF()
+        chi2_f2_exc3 = stIncMEThist.Chisquare(f2_exc3Normalized,"R")/f2_exc3Normalized.GetNDF()
+        chi2_f3_exc3 = stIncMEThist.Chisquare(f3_exc3Normalized,"R")/f3_exc3Normalized.GetNDF()
+        print "Printing info of Inclusive %i fittings:" % j  
+        print "The chi2/Ndof for %s is %s" %( f1Normalized.GetName()	        , chi2_f1    ) 
+	print "The chi2/Ndof for %s is %s" %( f2Normalized.GetName()	        , chi2_f2    )
+	print "The chi2/Ndof for %s is %s" %( f3Normalized.GetName()	        , chi2_f3    )
+	print "The chi2/Ndof for %s is %s" %( f1_exc3Normalized.GetName()	, chi2_f1_exc3)
+	print "The chi2/Ndof for %s is %s" %( f2_exc3Normalized.GetName()	, chi2_f2_exc3)
+	print "The chi2/Ndof for %s is %s" %( f3_exc3Normalized.GetName()	, chi2_f3_exc3)
+
+        chi2graph_f1.SetPoint( chi2graph_f1.GetN(), j , chi2_f1)
+        chi2graph_f2.SetPoint( chi2graph_f2.GetN(), j , chi2_f2)
+        chi2graph_f3.SetPoint( chi2graph_f3.GetN(), j , chi2_f3)
+        chi2graph_f1_exc3.SetPoint( chi2graph_f1_exc3.GetN(), j , chi2_f1_exc3)
+        chi2graph_f2_exc3.SetPoint( chi2graph_f2_exc3.GetN(), j , chi2_f2_exc3)
+        chi2graph_f3_exc3.SetPoint( chi2graph_f3_exc3.GetN(), j , chi2_f3_exc3)
+
+        chi2_list = [chi2_f1, chi2_f2, chi2_f3, chi2_f1_exc3, chi2_f2_exc3, chi2_f3_exc3]
+        functions = [f1Normalized,f2Normalized,f3Normalized,f1_exc3Normalized,f2_exc3Normalized,f3_exc3Normalized ]
+        fbest    = f2Normalized
+        #fbest    = f2_exc3Normalized
+        #fLow     = getSymmetrizedFuntion( fbest, functions, upperNormEdge, 14000)
+        fLow     = getSymmetrizedFuntion( fbest, functions, 3000, 14000)
+
         fLow.SetLineColor(kBlue)
         fLow.SetLineStyle(6)
         fLow.Draw("SAME")
@@ -317,8 +354,10 @@ for j in range(2,11):
             startbin=stIncMEThist.GetXaxis().FindBin(float(stmin*100))
             for stbin in range (startbin, stIncMEThist.GetXaxis().GetNbins()):
                 observed+=stIncMEThist.GetBinContent(stbin)
-            expected = f2Normalized.Integral(stmin*100, 9999999)/100
-            shapeUnc = abs(f1Normalized.Integral(stmin*100, 999999)/100-expected)/expected +1
+            expected = fbest.Integral(stmin*100, 9999999)/100
+                    #expected = f2Normalized.Integral(stmin*100, 9999999)/100
+            shapeUnc = abs(fLow.Integral(stmin*100, 999999)/100-expected)/expected +1
+                    #shapeUnc = abs(f1Normalized.Integral(stmin*100, 999999)/100-expected)/expected +1
                     #max(abs(f2Normalized.Integral(stmin*100, 999999)/100-expected),  #the 100's here are the bin width in GeV
                     #abs(f3Normalized.Integral(stmin*100, 999999)/100-expected)
                     #abs(f2_exc3Normalized.Integral(stmin*100, 999999)/100-expected),
@@ -328,8 +367,8 @@ for j in range(2,11):
                 outputForLimits.write("%i :: %i :: %f :: %f\n" % (stmin*100, observed, expected, shapeUnc))
         outputForLimits.close()
 
-    legend = TLegend(0.35, 0.68, 0.58, 0.85, "Inclusive ST distributions for n>=%i"%j, "brNDC")
-    legend.SetTextSize(0.02);
+    legend = TLegend(0.35, 0.68, 0.7, 0.85, "Inclusive ST distributions for n>=%i"%j, "brNDC")
+    legend.SetTextSize(0.04);
     legend.SetLineColor(1);
     legend.SetLineStyle(1);
     legend.SetLineWidth(1);
@@ -364,6 +403,35 @@ for j in range(2,11):
 
     STincComparisons[j-2].Write()
 
+c1= TCanvas("chi2graph","Chi2 vs N", 800,600)
+c1.cd()
+chi2graph_f1.SetLineColor(kRed)
+chi2graph_f2.SetLineColor(kBlack)
+chi2graph_f3.SetLineColor(kViolet)
+chi2graph_f1_exc3.SetLineColor(kGreen)
+chi2graph_f2_exc3.SetLineColor(kCyan)
+chi2graph_f3_exc3.SetLineColor(kMagenta)
+
+chi2graph_f1.Draw()
+chi2graph_f2.Draw("SAME")
+chi2graph_f3.Draw("SAME")
+chi2graph_f1_exc3.Draw("SAME")
+chi2graph_f2_exc3.Draw("SAME")
+chi2graph_f3_exc3.Draw("SAME")
+chi2graph_f1.SetTitle("Chi2/Ndof for different fit functions")
+chi2graph_f1.GetXaxis().SetTitle("Inclusive Multiplicity")
+chi2graph_f1.GetYaxis().SetTitle("Chi2/Ndof")
+leg = TLegend(0.7,0.7,0.9,0.9)
+leg.AddEntry(chi2graph_f1, "f1","L")
+leg.AddEntry(chi2graph_f2, "f2","L")
+leg.AddEntry(chi2graph_f3, "f3","L")
+leg.AddEntry(chi2graph_f1_exc3, "f1_exc3","L")
+leg.AddEntry(chi2graph_f2_exc3, "f2_exc3","L")
+leg.AddEntry(chi2graph_f3_exc3, "f3_exc3","L")
+leg.SetFillStyle(1001);
+leg.SetFillColor(0);
+leg.Draw()
+c1.Write()
 
 #if __name__ == '__main__':
 #   rep = ''
