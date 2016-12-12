@@ -4,6 +4,27 @@
 from ROOT import *
 from fitAndNormRanges import *
 from sys import argv
+import CMS_lumi
+
+##################################################################
+CMS_lumi.lumi_13TeV = "2.3 fb^{-1}"
+CMS_lumi.writeExtraText = 1
+CMS_lumi.extraText = "Preliminary"
+CMS_lumi.lumi_sqrtS = "13 TeV" # used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)
+iPos = 33
+if( iPos==0 ): CMS_lumi.relPosX = 0.12
+iPeriod = 4
+H_ref = 600;
+W_ref = 800;
+W = W_ref
+H  = H_ref
+# references for T, B, L, R
+T = 0.08*H_ref
+B = 0.12*H_ref
+L = 0.12*W_ref
+R = 0.04*W_ref
+
+##################################################################
 STexcComparisons = []
 STincComparisons = []
 upperExcPads = []
@@ -31,16 +52,18 @@ fitNormRanges.showNormRanges()
 rebin         = False 
 #f_outlier     = null
 
+
+STup = 8000
 def getratio(f1,f2):
     formula = "("+f1.GetExpFormula("p").Data() + ")/(" + f2.GetExpFormula("p").Data()+")-1"
     fname = f1.GetName()+"_over_+"+f2.GetName()
-    f1overf2 = TF1(fname,formula,1000,7000)
+    f1overf2 = TF1(fname,formula,1000,STup)
     return f1overf2
 
 def symmetrize(f1,f2):
     formula = "2*"+f1.GetExpFormula("p").Data() + "-" + f2.GetExpFormula("p").Data()
     fname = "2*"+f1.GetName()+"_minus_+"+f2.GetName()
-    f1minusf2 = TF1(fname,formula,1000,7000)
+    f1minusf2 = TF1(fname,formula,1000,STup)
     return f1minusf2
 
 # Return the symmetrized funtion w.r.t. bestfit among functions in the range xlow, xup
@@ -95,29 +118,29 @@ def ratioplot(fbest, sthist,xlow,xup):
 
 if argv[4] == "useMET" :
     # John fits
-    #f1 = TF1("f1", "[0]/([1]+x)**[2]", 1000, 7000)
-    #f2 = TF1("f2", "([0]*(1+x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, 7000)
-    #f3 = TF1("f3", "[0]/([1] + [2]*x + x**2)**[3]", 1000, 7000)
-    #f4 = TF1("f4", "([0]*(1+x)^[1])/(x**([2]*TMath::Log(x)))", 1000, 7000)
-    #f5 = TF1("f5", "([0]*(1-x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, 7000)
-    #f1_exc3 = TF1("f1_exc3", "[0]/([1]+x)**[2]", 1000, 7000)
-    #f2_exc3 = TF1("f2_exc3", "([0]*(1+x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, 7000)
-    #f3_exc3 = TF1("f3_exc3", "[0]/([1] + [2]*x + x**2)**[3]", 1000, 7000)
-    #f4_exc3 = TF1("f4_exc3", "([0]*(1+x)^[1])/(x**([2]*TMath::Log(x)))", 1000, 7000)
-    #f5_exc3 = TF1("f5_exc3", "([0]*(1-x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, 7000)
+    #f1 = TF1("f1", "[0]/([1]+x)**[2]", 1000, STup)
+    #f2 = TF1("f2", "([0]*(1+x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, STup)
+    #f3 = TF1("f3", "[0]/([1] + [2]*x + x**2)**[3]", 1000, STup)
+    #f4 = TF1("f4", "([0]*(1+x)^[1])/(x**([2]*TMath::Log(x)))", 1000, STup)
+    #f5 = TF1("f5", "([0]*(1-x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, STup)
+    #f1_exc3 = TF1("f1_exc3", "[0]/([1]+x)**[2]", 1000, STup)
+    #f2_exc3 = TF1("f2_exc3", "([0]*(1+x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, STup)
+    #f3_exc3 = TF1("f3_exc3", "[0]/([1] + [2]*x + x**2)**[3]", 1000, STup)
+    #f4_exc3 = TF1("f4_exc3", "([0]*(1+x)^[1])/(x**([2]*TMath::Log(x)))", 1000, STup)
+    #f5_exc3 = TF1("f5_exc3", "([0]*(1-x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, STup)
 
-    f1 = TF1("f1", "[0]/([1]+0.001*x)**[2]", 1000, 7000)
-    f2 = TF1("f2", "([0]*(1+x*0.001)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))", 1000, 7000)
-    f3 = TF1("f3", "[0]/([1] + [2]*x*0.001 + (0.001*x)**2)**[3]", 1000, 7000)
-    f4 = TF1("f4", "([0]*(1+0.001*x)^[1])/((0.001*x)**([2]*TMath::Log(x*0.001)))", 1000, 7000)
-    f5 = TF1("f5", "([0]*(1-0.001*x)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))", 1000, 7000)
-    f1_exc3 = TF1("f1_exc3", "[0]/([1]+0.001*x)**[2]", 1000, 7000)
-    f2_exc3 = TF1("f2_exc3", "([0]*(1+x*0.001)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))", 1000, 7000)
-    f3_exc3 = TF1("f3_exc3", "[0]/([1] + [2]*x*0.001 + (0.001*x)**2)**[3]", 1000, 7000)
-    f4_exc3 = TF1("f4_exc3", "([0]*(1+0.001*x)^[1])/((0.001*x)**([2]*TMath::Log(x*0.001)))", 1000, 7000)
-    f5_exc3 = TF1("f5_exc3", "([0]*(1-0.001*x)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))", 1000, 7000)
+    f1 = TF1("f1", "[0]/([1]+0.001*x)**[2]", 1000, STup)
+    f2 = TF1("f2", "([0]*(1+x*0.001)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))", 1000, STup)
+    f3 = TF1("f3", "[0]/([1] + [2]*x*0.001 + (0.001*x)**2)**[3]", 1000, STup)
+    f4 = TF1("f4", "([0]*(1+0.001*x)^[1])/((0.001*x)**([2]*TMath::Log(x*0.001)))", 1000, STup)
+    f5 = TF1("f5", "([0]*(1-0.001*x)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))", 1000, STup)
+    f1_exc3 = TF1("f1_exc3", "[0]/([1]+0.001*x)**[2]", 1000, STup)
+    f2_exc3 = TF1("f2_exc3", "([0]*(1+x*0.001)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))", 1000, STup)
+    f3_exc3 = TF1("f3_exc3", "[0]/([1] + [2]*x*0.001 + (0.001*x)**2)**[3]", 1000, STup)
+    f4_exc3 = TF1("f4_exc3", "([0]*(1+0.001*x)^[1])/((0.001*x)**([2]*TMath::Log(x*0.001)))", 1000, STup)
+    f5_exc3 = TF1("f5_exc3", "([0]*(1-0.001*x)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))", 1000, STup)
 
-    fLow=TF1("fLow", "[0]*(2*[1]/([2]*x)**[3]-[4]/([5] + [6]*x + x**2)**[7])", 1000, 7000)
+    fLow=TF1("fLow", "[0]*(2*[1]/([2]*x)**[3]-[4]/([5] + [6]*x + x**2)**[7])", 1000, STup)
     Funcs ={0:f1,1:f2,2:f3,3:f1_exc3,4:f2_exc3,5:f3_exc3,6:fLow}
 for i in range(2,4):
     if argv[4] == "useMET" :
@@ -229,7 +252,8 @@ for j in range(2,11):
         lowerNormEdge = stExcMEThist.GetXaxis().GetBinLowEdge(lowerNormBin)
         upperNormEdge = stExcMEThist.GetXaxis().GetBinLowEdge(upperNormBin)
         binwidth      = stExcMEThist.GetXaxis().GetBinWidth(upperNormBin)
-        stExcMEThist.GetXaxis().SetRangeUser(lowerNormEdge, 7000)
+        stExcMEThist.GetXaxis().SetRangeUser(lowerNormEdge, STup)
+        #stExcMEThist.GetXaxis().SetRangeUser(1400, STup)
         stExcMEThist.SetMinimum(1e-1)
 
         print "in N=%i, upperNormEdge = %s, lowerNormEdge = %s" % (j,upperNormEdge, lowerNormEdge)
@@ -288,12 +312,13 @@ for j in range(2,11):
    
     legend = TLegend(0.35, 0.68, 0.8, 0.85, "Exclusive ST distributions for n=%i"%j, "brNDC")
     legend.SetTextSize(0.04);
-    legend.SetLineColor(1);
     legend.SetLineWidth(1);
+    legend.SetBorderSize(0);
     legend.SetFillStyle(1001);
     legend.SetFillColor(10);
     if argv[4] == "useMET" :
-        legend.AddEntry(stExcMEThist,"ST using MET","lp");
+        #legend.AddEntry(stExcMEThist,"ST using MET","lp");
+        legend.AddEntry(stExcMEThist,"data","lp");
     legend.Draw()
 
     STexcComparisons[j-2].cd()
@@ -341,7 +366,7 @@ for j in range(2,11):
         lowerNormEdge = stIncMEThist.GetXaxis().GetBinLowEdge(lowerNormBin)
         upperNormEdge = stIncMEThist.GetXaxis().GetBinLowEdge(upperNormBin)
         binwidth      = stIncMEThist.GetXaxis().GetBinWidth(upperNormBin)
-        stIncMEThist.GetXaxis().SetRangeUser(lowerNormEdge, 7000)
+        stIncMEThist.GetXaxis().SetRangeUser(lowerNormEdge, STup)
         stIncMEThist.SetMinimum(1e-1)
         
         print "in N=%i, upperNormEdge = %s, lowerNormEdge = %s" % (j,upperNormEdge, lowerNormEdge)
@@ -436,12 +461,14 @@ for j in range(2,11):
     legend = TLegend(0.35, 0.68, 0.8, 0.85, "Inclusive ST distributions for n>=%i"%j, "brNDC")
     legend.SetTextSize(0.04);
     legend.SetLineColor(1);
+    legend.SetBorderSize(0);
     legend.SetLineStyle(1);
     legend.SetLineWidth(1);
     legend.SetFillStyle(1001);
     legend.SetFillColor(10);
     if argv[4] == "useMET" :
-        legend.AddEntry(stExcMEThist,"ST using MET","lp");
+        #legend.AddEntry(stExcMEThist,"ST using MET","lp");
+        legend.AddEntry(stExcMEThist,"data","lp");
     legend.Draw()
 
     STincComparisons[j-2].cd()
