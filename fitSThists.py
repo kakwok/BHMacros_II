@@ -32,7 +32,10 @@ upperIncPads = []
 lowerExcPads = []
 lowerIncPads = []
 Chi2List     = []
-Funcs	     = {}
+f2_list      = {}     #  functions for fitted to ST n=2  
+f3_list      = {}     #  functions for fitted to ST n=3
+f2_norm_list = {}     #  functions for fitted to ST n=2 after normalization
+f3_norm_list = {}     #  functions for fitted to ST n=2 after normalization
 PlotsFile = TFile(argv[1])
 PlotsDir = PlotsFile.Get("ST")
 OutFile = TFile("output/%s"%argv[2], "RECREATE")
@@ -90,7 +93,7 @@ def getSymmetrizedFuntion(bestfit, functions, xlow, xup):
     print " %s is symmetrized with respect to %s" % ( functions[bestfit_pos].GetName(), functions[fsym_pos].GetName() )
     return symmetrize( functions[bestfit_pos], functions[fsym_pos])
         
-def getNormalizedFuntion(f, hist, xlowbin, xupbin, xlowedge, xupedge, binwidth):
+def getNormalizedFunction(f, hist, xlowbin, xupbin, xlowedge, xupedge, binwidth):
     normBinTotal = 0;
     for normbin in range(xlowbin, xupbin):
         normBinTotal+=hist.GetBinContent(normbin)  
@@ -114,7 +117,118 @@ def customfit(f, Sthist, norm):
 
 def ratioplot(fbest, sthist,xlow,xup):
     h = sthist.Clone("h_ratio")
+  
+def FitAndDrawST(stHist,j,ExcOrInc):
+    if rebin :
+        stHist.Rebin(10)
+    # For exclusive STs
+    STexcComparisons.append(TCanvas("st%s%02iCanvas"%(ExcOrInc,j), "ST, N=%i"%j, 800, 800))
+    STexcComparisons[j-2].cd()
+    upperExcPads.append(TPad("%s%02ipad"%(ExcOrInc,j), "pad1", 0, 0.3, 1, 1.0))
+    upperExcPads[j-2].SetBottomMargin(2)
+    upperExcPads[j-2].Draw()
+    upperExcPads[j-2].cd()
+    upperExcPads[j-2].SetLogy()
+    if argv[4] == "useMET" and (j==2 or j==3):
+        stHist.GetXaxis().SetTitle("S_{T} (GeV)")
+        stHist.GetYaxis().SetTitle("Events")
+        stHist.SetMarkerColor(kBlack)
+        stHist.SetMarkerStyle(8)
+        stHist.SetMarkerSize(0.7)
+        stHist.Draw("EP")
+        lowerNormBin = stHist.GetXaxis().FindBin(float(fitNormRanges.getLowerNormBound("exc%i"%j)))
+        upperNormBin = stHist.GetXaxis().FindBin(float(fitNormRanges.getUpperNormBound("exc%i"%j)))
+        lowerNormEdge = stHist.GetXaxis().GetBinLowEdge(lowerNormBin)
+        upperNormEdge = stHist.GetXaxis().GetBinLowEdge(upperNormBin)
+        binwidth      = stHist.GetXaxis().GetBinWidth(upperNormBin)
+        stHist.GetXaxis().SetRangeUser(lowerNormEdge, STup)
+        #stHist.GetXaxis().SetRangeUser(1400, STup)
+        stHist.SetMinimum(1e-1)
+
+        print "in N=%i, upperNormEdge = %s, lowerNormEdge = %s" % (j,upperNormEdge, lowerNormEdge)
+	chi2_list = []
+	functions = []
+	# Normalize the N=2 fit functions
+	for fname in f2_list:
+		fname_norm = fname +"_norm"
+		f2_norm_list[fname_norm] = getNormalizedFunction( f2_list[fname], stHist, lowerNormBin, upperNormBin, lowerNormEdge, upperNormEdge, binwidth)
+		chi2_list.append(stHist.Chisquare( f2_norm_list[fname_norm] ,"R")/ f2_norm_list[fname_norm].GetNDF())
+	# Draw the normalized N=2 fit functions
+	for fname in f2_norm_list:
+		f2_norm_list[fname].Draw("SAME")
+	# Normalize the N=3 fit functions
+	for fname in f3_list:
+		fname_norm = fname +"_norm"
+		f3_norm_list[fname_norm] = getNormalizedFunction( f3_list[fname], stHist, lowerNormBin, upperNormBin, lowerNormEdge, upperNormEdge, binwidth)
+		chi2_list.append(stHist.Chisquare( f3_norm_list[fname_norm] ,"R")/ f3_norm_list[fname_norm].GetNDF())
+	# Draw the normalized N=3 fit functions
+	for fname in f3_norm_list:
+		f3_norm_list[fname].Draw("SAME")
+			
+        #print "Printing info of Exclusive %i fittings:" % j  
+        #print "The chi2/Ndof for %s is %s" %( f1Normalized.GetName()	        , chi2_f1    ) 
+	#print "The chi2/Ndof for %s is %s" %( f3_exc3Normalized.GetName()	, chi2_f3_exc3)
+
+        #fbest    = f2Normalized
+        #fLow     = getSymmetrizedFuntion( fbest, functions, upperNormEdge, 14000)
+	for fname in f2_norm_list:
+		functions.append( f2_norm_list[fname] )
+	for fname in f3_norm_list:
+		functions.append( f3_norm_list[fname] )
+	fbest    = f2_norm_list["f2_norm"]
+        fLow     = getSymmetrizedFuntion( fbest, functions, 3000, 14000)
+ 
+        fLow.SetLineColor(kBlue)
+        fLow.SetLineStyle(6)
+        fLow.Draw("SAME")
+	chi2_list = []
+	functions = []
+
    
+    legend = TLegend(0.35, 0.68, 0.8, 0.85, "Exclusive ST distributions for n=%i"%j, "brNDC")
+    legend.SetTextSize(0.04);
+    legend.SetLineWidth(1);
+    legend.SetBorderSize(0);
+    legend.SetFillStyle(1001);
+    legend.SetFillColor(10);
+    if argv[4] == "useMET" :
+        #legend.AddEntry(stHist,"ST using MET","lp");
+        legend.AddEntry(stHist,"data","lp");
+    legend.Draw()
+
+    STexcComparisons[j-2].cd()
+    lowerExcPads.append(TPad("Exc%02iratiopad"%j, "ratiopad1", 0, 0.04, 1, 0.3))
+    lowerExcPads[j-2].SetTopMargin(5)
+    lowerExcPads[j-2].SetBottomMargin(0.2)
+    lowerExcPads[j-2].Draw()
+    lowerExcPads[j-2].cd()
+
+    if argv[4] == "useMET" :
+        stExcMETRatio = stHist.Clone("stExcMETRatio")
+        stExcMETRatio.GetXaxis().SetLabelSize(.08)
+        stExcMETRatio.GetXaxis().SetTitle("")
+        stExcMETRatio.GetYaxis().SetTitle("Ratio to n=2")
+        stExcMETRatio.GetYaxis().SetLabelSize(.075)
+        stExcMETRatio.GetYaxis().SetTitleSize(.1)
+        stExcMETRatio.GetYaxis().SetTitleOffset(.3)
+        stExcMETRatio.Divide(stExc2METhist)
+        stExcMETRatio.SetTitle("")
+        stExcMETRatio.SetMarkerColor(kBlack)
+        stExcMETRatio.SetMarkerStyle(8)
+        stExcMETRatio.SetMarkerSize(0.7)
+        stExcMETRatio.Draw("EP")
+        stExcMETRatio.SetStats(0)
+    STexcComparisons[j-2].Write()
+
+    STincComparisons.append(TCanvas("stInc%02iCanvas"%j, "ST, N>=%i"%j, 800, 800))
+    STincComparisons[j-2].cd()
+    upperIncPads.append(TPad("Inc%02ipad"%j, "pad1", 0, 0.3, 1, 1.0))
+    upperIncPads[j-2].SetBottomMargin(2)
+    upperIncPads[j-2].Draw()
+    upperIncPads[j-2].cd()
+    upperIncPads[j-2].SetLogy()
+
+
 
 if argv[4] == "useMET" :
     # John fits
@@ -140,6 +254,18 @@ if argv[4] == "useMET" :
     f4_exc3 = TF1("f4_exc3", "([0]*(1+0.001*x)^[1])/((0.001*x)**([2]*TMath::Log(x*0.001)))", 1000, STup)
     f5_exc3 = TF1("f5_exc3", "([0]*(1-0.001*x)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))", 1000, STup)
 
+    f2_list["f1"]=f1
+    f2_list["f2"]=f2
+    f2_list["f3"]=f3
+    f2_list["f4"]=f4
+    f2_list["f5"]=f5
+ 
+    f3_list["f1_exc3"]=f1_exc3
+    f3_list["f2_exc3"]=f2_exc3
+    f3_list["f3_exc3"]=f3_exc3
+    f3_list["f4_exc3"]=f4_exc3
+    f3_list["f5_exc3"]=f5_exc3
+ 
     fLow=TF1("fLow", "[0]*(2*[1]/([2]*x)**[3]-[4]/([5] + [6]*x + x**2)**[7])", 1000, STup)
     Funcs ={0:f1,1:f2,2:f3,3:f1_exc3,4:f2_exc3,5:f3_exc3,6:fLow}
 for i in range(2,4):
@@ -157,28 +283,21 @@ for i in range(2,4):
                 #f4.SetParameters(8e11, -0.86,  0.62)
                 #f5.SetParameters(1.7e12, -1, -3, 0.62)
 		# Tutanon's function parameters
-                f1.SetParameters(8e6, 0.5, 9)
-                f2.SetParameters(2.4e6, -3, 4.7, 0.4)
-                f3.SetParameters(6e5, 0.4, -0.1, 4)
-                f4.SetParameters(1.5e9, -12,  -0.7)
-                f5.SetParameters(2e5, 0, 6, 0.7)
+                f2_list["f1"].SetParameters(8e6, 0.5, 9)
+                f2_list["f2"].SetParameters(2.4e6, -3, 4.7, 0.4)
+                f2_list["f3"].SetParameters(6e5, 0.4, -0.1, 4)
+                f2_list["f4"].SetParameters(1.5e9, -12,  -0.7)
+                f2_list["f5"].SetParameters(2e5, 0, 6, 0.7)
 
-                customfit(f1,stExcMEThist,"exc2")
-                customfit(f2,stExcMEThist,"exc2")
-                customfit(f3,stExcMEThist,"exc2")
-                customfit(f4,stExcMEThist,"exc2")
-                #customfit(f5,stExcMEThist,"exc2")
+		for fname in f2_list:
+			customfit(f2_list[fname],stExcMEThist,"exc2")
+			f2_list[fname].SetLineStyle(6)
 
-                f1.SetLineColor(kRed)
-                f1.SetLineStyle(6)
-                f2.SetLineColor(kBlack)
-                f2.SetLineStyle(6)
-                f3.SetLineColor(kViolet)
-                f3.SetLineStyle(6)
-                f4.SetLineColor(kPink)
-                f4.SetLineStyle(6)
-                f5.SetLineColor(kYellow)
-                f5.SetLineStyle(6)
+                f2_list["f1"].SetLineColor(kRed)
+                f2_list["f2"].SetLineColor(kBlack)
+                f2_list["f3"].SetLineColor(kViolet)
+                f2_list["f4"].SetLineColor(kPink)
+                f2_list["f5"].SetLineColor(kYellow)
 
             if i==3:
 		# John's parameter
@@ -188,28 +307,20 @@ for i in range(2,4):
                 #f4_exc3.SetParameters(8e11, -0.86,  0.62)
                 #f5_exc3.SetParameters(1.7e12, -1, -3, 0.62)
 		# Tutanon's function parameter
-                f1_exc3.SetParameters(8e6, 0.5, 9)
-                f2_exc3.SetParameters(2.4e6, -3, 4.7, 0.4)
-                f3_exc3.SetParameters(6e5, 0.4, -0.1, 4)
-                f4_exc3.SetParameters(1.5e9, -12,  -0.7)
-                f5_exc3.SetParameters(2e5, 0, 6, 0.7)
+                f3_list["f1_exc3"].SetParameters(8e6, 0.5, 9)
+                f3_list["f2_exc3"].SetParameters(2.4e6, -3, 4.7, 0.4)
+                f3_list["f3_exc3"].SetParameters(6e5, 0.4, -0.1, 4)
+                f3_list["f4_exc3"].SetParameters(1.5e9, -12,  -0.7)
+                f3_list["f5_exc3"].SetParameters(2e5, 0, 6, 0.7)
 
-
-                customfit(f1_exc3,stExcMEThist,"exc3")
-                customfit(f2_exc3,stExcMEThist,"exc3")
-                customfit(f3_exc3,stExcMEThist,"exc3")
-                customfit(f4_exc3,stExcMEThist,"exc3")
-                #customfit(f5_exc3,stExcMEThist,"exc3")
-                f1_exc3.SetLineColor(kGreen)
-                f1_exc3.SetLineStyle(4)
-                f2_exc3.SetLineColor(kCyan)
-                f2_exc3.SetLineStyle(4)
-                f3_exc3.SetLineColor(kMagenta)
-                f3_exc3.SetLineStyle(4)
-                f4_exc3.SetLineColor(kOrange)
-                f4_exc3.SetLineStyle(4)
-                f5_exc3.SetLineColor(kSpring+10)
-                f5_exc3.SetLineStyle(4)
+		for fname in f3_list:
+			customfit(f3_list[fname],stExcMEThist,"exc3")
+			f3_list[fname].SetLineStyle(4)
+                f3_list["f1_exc3"].SetLineColor(kGreen)
+                f3_list["f2_exc3"].SetLineColor(kCyan)
+                f3_list["f3_exc3"].SetLineColor(kMagenta)
+                f3_list["f4_exc3"].SetLineColor(kOrange)
+                f3_list["f5_exc3"].SetLineColor(kSpring+10)
 
                 #print "f1 has value " + str(f1.Eval(6500)) + " at ST=6500"
                 #print "f2 has value " + str(f2.Eval(6500)) + " at ST=6500"
@@ -221,7 +332,6 @@ for i in range(2,4):
 #for j in range(0,len(Chi2List)):
 #	print Chi2List[j]
 print "The minimum chi2 is %s %.3f" % (Chi2List.index(min(Chi2List)),min(Chi2List))
-print "This should be the same chi2 %.3f" % (Funcs[Chi2List.index(min(Chi2List))].GetChisquare() )
 
 for j in range(2,11):
     if argv[4] == "useMET" :
@@ -231,128 +341,8 @@ for j in range(2,11):
     if rebin :
         stExcMEThist.Rebin(10)
         stIncMEThist.Rebin(10)
-    # For exclusive STs
-    STexcComparisons.append(TCanvas("stExc%02iCanvas"%j, "ST, N=%i"%j, 800, 800))
-    STexcComparisons[j-2].cd()
-    upperExcPads.append(TPad("Exc%02ipad"%j, "pad1", 0, 0.3, 1, 1.0))
-    upperExcPads[j-2].SetBottomMargin(2)
-    upperExcPads[j-2].Draw()
-    upperExcPads[j-2].cd()
-    upperExcPads[j-2].SetLogy()
-    #if argv[4] == "useMET" :
-    if argv[4] == "useMET" and (j==2 or j==3):
-        stExcMEThist.GetXaxis().SetTitle("S_{T} (GeV)")
-        stExcMEThist.GetYaxis().SetTitle("Events")
-        stExcMEThist.SetMarkerColor(kBlack)
-        stExcMEThist.SetMarkerStyle(8)
-        stExcMEThist.SetMarkerSize(0.7)
-        stExcMEThist.Draw("EP")
-        lowerNormBin = stExcMEThist.GetXaxis().FindBin(float(fitNormRanges.getLowerNormBound("exc%i"%j)))
-        upperNormBin = stExcMEThist.GetXaxis().FindBin(float(fitNormRanges.getUpperNormBound("exc%i"%j)))
-        lowerNormEdge = stExcMEThist.GetXaxis().GetBinLowEdge(lowerNormBin)
-        upperNormEdge = stExcMEThist.GetXaxis().GetBinLowEdge(upperNormBin)
-        binwidth      = stExcMEThist.GetXaxis().GetBinWidth(upperNormBin)
-        stExcMEThist.GetXaxis().SetRangeUser(lowerNormEdge, STup)
-        #stExcMEThist.GetXaxis().SetRangeUser(1400, STup)
-        stExcMEThist.SetMinimum(1e-1)
-
-        print "in N=%i, upperNormEdge = %s, lowerNormEdge = %s" % (j,upperNormEdge, lowerNormEdge)
-        f1Normalized = getNormalizedFuntion( f1, stExcMEThist,lowerNormBin, upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        f1Normalized.Draw("SAME")
-        f2Normalized = getNormalizedFuntion( f2, stExcMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        f2Normalized.Draw("SAME")
-        f3Normalized = getNormalizedFuntion( f3, stExcMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        f3Normalized.Draw("SAME")
-        f4Normalized = getNormalizedFuntion( f4, stExcMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        f4Normalized.Draw("SAME")
-        #f5Normalized = getNormalizedFuntion( f5, stExcMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        #f5Normalized.Draw("SAME")
-        f1_exc3Normalized = getNormalizedFuntion( f1_exc3, stExcMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        f1_exc3Normalized.Draw("SAME")
-        f2_exc3Normalized = getNormalizedFuntion( f2_exc3, stExcMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        f2_exc3Normalized.Draw("SAME")
-        f3_exc3Normalized = getNormalizedFuntion( f3_exc3, stExcMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        f3_exc3Normalized.Draw("SAME")
-        f4_exc3Normalized = getNormalizedFuntion( f4_exc3, stExcMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        f4_exc3Normalized.Draw("SAME")
-        #f5_exc3Normalized = getNormalizedFuntion( f5_exc3, stExcMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        #f5_exc3Normalized.Draw("SAME")
-
-        chi2_f1      = stExcMEThist.Chisquare(f1Normalized,"R")/ f1Normalized.GetNDF()
-        chi2_f2      = stExcMEThist.Chisquare(f2Normalized,"R")/ f2Normalized.GetNDF()
-        chi2_f3      = stExcMEThist.Chisquare(f3Normalized,"R")/ f3Normalized.GetNDF()
-        chi2_f4      = stExcMEThist.Chisquare(f4Normalized,"R")/ f4Normalized.GetNDF()
-        #chi2_f5      = stExcMEThist.Chisquare(f5Normalized,"R")/ f5Normalized.GetNDF()
-        chi2_f1_exc3 = stExcMEThist.Chisquare(f1_exc3Normalized,"R")/f1_exc3Normalized.GetNDF()
-        chi2_f2_exc3 = stExcMEThist.Chisquare(f2_exc3Normalized,"R")/f2_exc3Normalized.GetNDF()
-        chi2_f3_exc3 = stExcMEThist.Chisquare(f3_exc3Normalized,"R")/f3_exc3Normalized.GetNDF()
-        chi2_f4_exc3 = stExcMEThist.Chisquare(f4_exc3Normalized,"R")/f4_exc3Normalized.GetNDF()
-        #chi2_f5_exc3 = stExcMEThist.Chisquare(f5_exc3Normalized,"R")/f5_exc3Normalized.GetNDF()
-       
-        #print "Printing info of Exclusive %i fittings:" % j  
-        #print "The chi2/Ndof for %s is %s" %( f1Normalized.GetName()	        , chi2_f1    ) 
-	#print "The chi2/Ndof for %s is %s" %( f2Normalized.GetName()	        , chi2_f2    )
-	#print "The chi2/Ndof for %s is %s" %( f3Normalized.GetName()	        , chi2_f3    )
-	#print "The chi2/Ndof for %s is %s" %( f1_exc3Normalized.GetName()	, chi2_f1_exc3)
-	#print "The chi2/Ndof for %s is %s" %( f2_exc3Normalized.GetName()	, chi2_f2_exc3)
-	#print "The chi2/Ndof for %s is %s" %( f3_exc3Normalized.GetName()	, chi2_f3_exc3)
-
-        #chi2_list = [chi2_f1, chi2_f2, chi2_f3,chi2_f4,chi2_f5, chi2_f1_exc3, chi2_f2_exc3, chi2_f3_exc3,chi2_f4_exc3,chi2_f5_exc3]
-        #functions = [f1Normalized,f2Normalized,f3Normalized,f4Normalized,f5Normalized,f1_exc3Normalized,f2_exc3Normalized,f3_exc3Normalized ,f4_exc3Normalized ,f5_exc3Normalized ]
-        chi2_list = [chi2_f1, chi2_f2, chi2_f3,chi2_f4, chi2_f1_exc3, chi2_f2_exc3, chi2_f3_exc3,chi2_f4_exc3]
-        functions = [f1Normalized,f2Normalized,f3Normalized,f4Normalized,f1_exc3Normalized,f2_exc3Normalized,f3_exc3Normalized ,f4_exc3Normalized ]
-        fbest    = f2Normalized
-        #fLow     = getSymmetrizedFuntion( fbest, functions, upperNormEdge, 14000)
-        fLow     = getSymmetrizedFuntion( fbest, functions, 3000, 14000)
- 
-        fLow.SetLineColor(kBlue)
-        fLow.SetLineStyle(6)
-        fLow.Draw("SAME")
-
-   
-    legend = TLegend(0.35, 0.68, 0.8, 0.85, "Exclusive ST distributions for n=%i"%j, "brNDC")
-    legend.SetTextSize(0.04);
-    legend.SetLineWidth(1);
-    legend.SetBorderSize(0);
-    legend.SetFillStyle(1001);
-    legend.SetFillColor(10);
-    if argv[4] == "useMET" :
-        #legend.AddEntry(stExcMEThist,"ST using MET","lp");
-        legend.AddEntry(stExcMEThist,"data","lp");
-    legend.Draw()
-
-    STexcComparisons[j-2].cd()
-    lowerExcPads.append(TPad("Exc%02iratiopad"%j, "ratiopad1", 0, 0.04, 1, 0.3))
-    lowerExcPads[j-2].SetTopMargin(5)
-    lowerExcPads[j-2].SetBottomMargin(0.2)
-    lowerExcPads[j-2].Draw()
-    lowerExcPads[j-2].cd()
-
-    if argv[4] == "useMET" :
-        stExcMETRatio = stExcMEThist.Clone("stExcMETRatio")
-        stExcMETRatio.GetXaxis().SetLabelSize(.08)
-        stExcMETRatio.GetXaxis().SetTitle("")
-        stExcMETRatio.GetYaxis().SetTitle("Ratio to n=2")
-        stExcMETRatio.GetYaxis().SetLabelSize(.075)
-        stExcMETRatio.GetYaxis().SetTitleSize(.1)
-        stExcMETRatio.GetYaxis().SetTitleOffset(.3)
-        stExcMETRatio.Divide(stExc2METhist)
-        stExcMETRatio.SetTitle("")
-        stExcMETRatio.SetMarkerColor(kBlack)
-        stExcMETRatio.SetMarkerStyle(8)
-        stExcMETRatio.SetMarkerSize(0.7)
-        stExcMETRatio.Draw("EP")
-        stExcMETRatio.SetStats(0)
-    STexcComparisons[j-2].Write()
-
-    STincComparisons.append(TCanvas("stInc%02iCanvas"%j, "ST, N>=%i"%j, 800, 800))
-    STincComparisons[j-2].cd()
-    upperIncPads.append(TPad("Inc%02ipad"%j, "pad1", 0, 0.3, 1, 1.0))
-    upperIncPads[j-2].SetBottomMargin(2)
-    upperIncPads[j-2].Draw()
-    upperIncPads[j-2].cd()
-    upperIncPads[j-2].SetLogy()
-
+    
+    FitAndDrawST(stExcMEThist,j,"Exc")
     # For Inclusive STs
     if argv[4] == "useMET" :
         stIncMEThist.GetXaxis().SetTitle("S_{T} (GeV)")
@@ -372,25 +362,25 @@ for j in range(2,11):
         print "in N=%i, upperNormEdge = %s, lowerNormEdge = %s" % (j,upperNormEdge, lowerNormEdge)
 
         print "\nPrinting info of Inclusive %i fittings:" % j  
-        f1Normalized = getNormalizedFuntion( f1, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        f1Normalized = getNormalizedFunction( f1, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
         f1Normalized.Draw("SAME")
-        f2Normalized = getNormalizedFuntion( f2, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        f2Normalized = getNormalizedFunction( f2, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
         f2Normalized.Draw("SAME")
-        f3Normalized = getNormalizedFuntion( f3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        f3Normalized = getNormalizedFunction( f3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
         f3Normalized.Draw("SAME")
-        f4Normalized = getNormalizedFuntion( f4, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        f4Normalized = getNormalizedFunction( f4, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
         f4Normalized.Draw("SAME")
-        #f5Normalized = getNormalizedFuntion( f5, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        #f5Normalized = getNormalizedFunction( f5, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
         #f5Normalized.Draw("SAME")
-        f1_exc3Normalized = getNormalizedFuntion( f1_exc3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        f1_exc3Normalized = getNormalizedFunction( f1_exc3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
         f1_exc3Normalized.Draw("SAME")
-        f2_exc3Normalized = getNormalizedFuntion( f2_exc3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        f2_exc3Normalized = getNormalizedFunction( f2_exc3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
         f2_exc3Normalized.Draw("SAME")
-        f3_exc3Normalized = getNormalizedFuntion( f3_exc3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        f3_exc3Normalized = getNormalizedFunction( f3_exc3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
         f3_exc3Normalized.Draw("SAME")
-        f4_exc3Normalized = getNormalizedFuntion( f4_exc3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        f4_exc3Normalized = getNormalizedFunction( f4_exc3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
         f4_exc3Normalized.Draw("SAME")
-        #f5_exc3Normalized = getNormalizedFuntion( f5_exc3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
+        #f5_exc3Normalized = getNormalizedFunction( f5_exc3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
         #f5_exc3Normalized.Draw("SAME")
 
         chi2_f1      = stIncMEThist.Chisquare(f1Normalized,"R")/ f1Normalized.GetNDF()
