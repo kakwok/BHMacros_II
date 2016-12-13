@@ -25,12 +25,9 @@ L = 0.12*W_ref
 R = 0.04*W_ref
 
 ##################################################################
-STexcComparisons = []
-STincComparisons = []
-upperExcPads = []
-upperIncPads = []
-lowerExcPads = []
-lowerIncPads = []
+STcomparisons = {}
+upperPads     = {}
+lowerPads     = {}
 Chi2List     = []
 f2_list      = {}     #  functions for fitted to ST n=2  
 f3_list      = {}     #  functions for fitted to ST n=3
@@ -39,20 +36,13 @@ f3_norm_list = {}     #  functions for fitted to ST n=2 after normalization
 PlotsFile = TFile(argv[1])
 PlotsDir = PlotsFile.Get("ST")
 OutFile = TFile("output/%s"%argv[2], "RECREATE")
-chi2graph_f1 = TGraph()
-chi2graph_f2 = TGraph()
-chi2graph_f3 = TGraph()
-chi2graph_f4 = TGraph()
-chi2graph_f5 = TGraph()
-chi2graph_f1_exc3 = TGraph()
-chi2graph_f2_exc3 = TGraph()
-chi2graph_f3_exc3 = TGraph()
-chi2graph_f4_exc3 = TGraph()
-chi2graph_f5_exc3 = TGraph()
+chi2graphs   = {}
 fitNormRanges = FitAndNormRange(argv[3])
 fitNormRanges.showFitRanges()
 fitNormRanges.showNormRanges()
-rebin         = False 
+rebin          = False 
+WriteDataCards = True
+#WriteDataCards = False
 #f_outlier     = null
 
 
@@ -117,73 +107,103 @@ def customfit(f, Sthist, norm):
 
 def ratioplot(fbest, sthist,xlow,xup):
     h = sthist.Clone("h_ratio")
-  
-def FitAndDrawST(stHist,j,ExcOrInc):
+ 
+###################################
+##  This function takes stHist, get normalized fit function, symmetrize it and draw it on a canvas
+##
+##  stHist    = Inclusive/Exclusive ST histogram from flatuple  
+##  j         = multiplicity of the histogram
+## ExcOrInc   = "Exc" or "Inc"
+## stExc2Hist = histogram of N=2 for drawing ratio plot 
+###################################
+def FitAndDrawST(stHist,j,ExcOrInc,stExc2Hist):
     if rebin :
         stHist.Rebin(10)
     # For exclusive STs
-    STexcComparisons.append(TCanvas("st%s%02iCanvas"%(ExcOrInc,j), "ST, N=%i"%j, 800, 800))
-    STexcComparisons[j-2].cd()
-    upperExcPads.append(TPad("%s%02ipad"%(ExcOrInc,j), "pad1", 0, 0.3, 1, 1.0))
-    upperExcPads[j-2].SetBottomMargin(2)
-    upperExcPads[j-2].Draw()
-    upperExcPads[j-2].cd()
-    upperExcPads[j-2].SetLogy()
-    if argv[4] == "useMET" and (j==2 or j==3):
-        stHist.GetXaxis().SetTitle("S_{T} (GeV)")
-        stHist.GetYaxis().SetTitle("Events")
-        stHist.SetMarkerColor(kBlack)
-        stHist.SetMarkerStyle(8)
-        stHist.SetMarkerSize(0.7)
-        stHist.Draw("EP")
-        lowerNormBin = stHist.GetXaxis().FindBin(float(fitNormRanges.getLowerNormBound("exc%i"%j)))
-        upperNormBin = stHist.GetXaxis().FindBin(float(fitNormRanges.getUpperNormBound("exc%i"%j)))
-        lowerNormEdge = stHist.GetXaxis().GetBinLowEdge(lowerNormBin)
-        upperNormEdge = stHist.GetXaxis().GetBinLowEdge(upperNormBin)
-        binwidth      = stHist.GetXaxis().GetBinWidth(upperNormBin)
-        stHist.GetXaxis().SetRangeUser(lowerNormEdge, STup)
-        #stHist.GetXaxis().SetRangeUser(1400, STup)
-        stHist.SetMinimum(1e-1)
+    canvasName = "st%s%02iCanvas"%(ExcOrInc,j)
+    UpperPadName    = "%s%02ipad"%(ExcOrInc,j)
+    STcomparisons[canvasName] = TCanvas(canvasName, "ST, N=%i"%j, 800, 800)
+    STcomparisons[canvasName].cd()
+    upperPads[UpperPadName]        = (TPad("%s%02ipad"%(ExcOrInc,j), "pad1", 0, 0.3, 1, 1.0))
+    upperPads[UpperPadName].SetBottomMargin(2)
+    upperPads[UpperPadName].Draw()
+    upperPads[UpperPadName].cd()
+    upperPads[UpperPadName].SetLogy()
+    stHist.GetXaxis().SetTitle("S_{T} (GeV)")
+    stHist.GetYaxis().SetTitle("Events")
+    stHist.SetMarkerColor(kBlack)
+    stHist.SetMarkerStyle(8)
+    stHist.SetMarkerSize(0.7)
+    stHist.Draw("EP")
+    if (ExcOrInc=="Exc"):
+        lowerNormBin  = stHist.GetXaxis().FindBin(float(fitNormRanges.getLowerNormBound("exc%i"%j)))
+        upperNormBin  = stHist.GetXaxis().FindBin(float(fitNormRanges.getUpperNormBound("exc%i"%j)))
+    if (ExcOrInc=="Inc"):
+        lowerNormBin  = stHist.GetXaxis().FindBin(float(fitNormRanges.getLowerNormBound("inc%i"%j)))
+        upperNormBin  = stHist.GetXaxis().FindBin(float(fitNormRanges.getUpperNormBound("inc%i"%j)))
 
-        print "in N=%i, upperNormEdge = %s, lowerNormEdge = %s" % (j,upperNormEdge, lowerNormEdge)
-	chi2_list = []
-	functions = []
-	# Normalize the N=2 fit functions
-	for fname in f2_list:
-		fname_norm = fname +"_norm"
-		f2_norm_list[fname_norm] = getNormalizedFunction( f2_list[fname], stHist, lowerNormBin, upperNormBin, lowerNormEdge, upperNormEdge, binwidth)
-		chi2_list.append(stHist.Chisquare( f2_norm_list[fname_norm] ,"R")/ f2_norm_list[fname_norm].GetNDF())
-	# Draw the normalized N=2 fit functions
-	for fname in f2_norm_list:
-		f2_norm_list[fname].Draw("SAME")
-	# Normalize the N=3 fit functions
-	for fname in f3_list:
-		fname_norm = fname +"_norm"
-		f3_norm_list[fname_norm] = getNormalizedFunction( f3_list[fname], stHist, lowerNormBin, upperNormBin, lowerNormEdge, upperNormEdge, binwidth)
-		chi2_list.append(stHist.Chisquare( f3_norm_list[fname_norm] ,"R")/ f3_norm_list[fname_norm].GetNDF())
-	# Draw the normalized N=3 fit functions
-	for fname in f3_norm_list:
-		f3_norm_list[fname].Draw("SAME")
-			
-        #print "Printing info of Exclusive %i fittings:" % j  
-        #print "The chi2/Ndof for %s is %s" %( f1Normalized.GetName()	        , chi2_f1    ) 
-	#print "The chi2/Ndof for %s is %s" %( f3_exc3Normalized.GetName()	, chi2_f3_exc3)
+    lowerNormEdge = stHist.GetXaxis().GetBinLowEdge(lowerNormBin)
+    upperNormEdge = stHist.GetXaxis().GetBinLowEdge(upperNormBin)
+    binwidth      = stHist.GetXaxis().GetBinWidth(upperNormBin)
+    stHist.GetXaxis().SetRangeUser(lowerNormEdge, STup)
+    #stHist.GetXaxis().SetRangeUser(1400, STup)
+    stHist.SetMinimum(1e-1)
 
-        #fbest    = f2Normalized
-        #fLow     = getSymmetrizedFuntion( fbest, functions, upperNormEdge, 14000)
-	for fname in f2_norm_list:
-		functions.append( f2_norm_list[fname] )
-	for fname in f3_norm_list:
-		functions.append( f3_norm_list[fname] )
-	fbest    = f2_norm_list["f2_norm"]
-        fLow     = getSymmetrizedFuntion( fbest, functions, 3000, 14000)
- 
-        fLow.SetLineColor(kBlue)
-        fLow.SetLineStyle(6)
-        fLow.Draw("SAME")
-	chi2_list = []
-	functions = []
+    print "in N=%i, upperNormEdge = %s, lowerNormEdge = %s" % (j,upperNormEdge, lowerNormEdge)
+    chi2_list     = []
+    #chi2 deviation list
+    chi2_devlist  = []
+    functions     = []
+    # Normalize the N=2 fit functions
+    for fname in f2_list:
+    	fname_norm = fname +"_norm"
+    	f2_norm_list[fname_norm] = getNormalizedFunction( f2_list[fname], stHist, lowerNormBin, upperNormBin, lowerNormEdge, upperNormEdge, binwidth)
+        chi2 = stHist.Chisquare( f2_norm_list[fname_norm] ,"R")/ f2_norm_list[fname_norm].GetNDF()
+    	chi2_list.append(chi2)
+    	chi2_devlist.append(abs(chi2-1))
+    	functions.append( f2_norm_list[fname_norm] )
+    	if(ExcOrInc=="Inc"):
+            chi2graphs[fname].SetPoint( chi2graphs[fname].GetN(), j , chi2)
 
+    # Draw the normalized N=2 fit functions
+    for fname in f2_norm_list:
+    	f2_norm_list[fname].Draw("SAME")
+
+    # Normalize the N=3 fit functions
+    for fname in f3_list:
+    	fname_norm = fname +"_norm"
+    	f3_norm_list[fname_norm] = getNormalizedFunction( f3_list[fname], stHist, lowerNormBin, upperNormBin, lowerNormEdge, upperNormEdge, binwidth)
+        chi2 = stHist.Chisquare( f3_norm_list[fname_norm] ,"R")/ f3_norm_list[fname_norm].GetNDF()
+    	chi2_list.append(chi2)
+    	chi2_devlist.append(abs(chi2-1))
+    	functions.append( f3_norm_list[fname_norm] )
+    	# Fill chi2 graph
+    	if(ExcOrInc=="Inc"):
+            chi2graphs[fname].SetPoint( chi2graphs[fname].GetN(), j , chi2)
+
+    # Draw the normalized N=3 fit functions
+    for fname in f3_norm_list:
+    	f3_norm_list[fname].Draw("SAME")
+	
+    
+    #fbest    = f2Normalized
+    #fLow     = getSymmetrizedFuntion( fbest, functions, upperNormEdge, 14000)
+    #fbest    = f2_norm_list["f2_norm"]
+    fbest     = functions[ chi2_devlist.index( min(chi2_devlist) ) ]
+    print "fbest is chosen to be %s\n"%fbest.GetName()
+    fLow     = getSymmetrizedFuntion( fbest, functions, 3000, 14000)
+    
+    fLow.SetLineColor(kBlue)
+    fLow.SetLineStyle(6)
+    fLow.Draw("SAME")
+    chi2_list    = []
+    chi2_devlist = []
+    functions    = []
+
+    if(ExcOrInc=="Exc"):
+        legend = TLegend(0.35, 0.68, 0.8, 0.85, "Exclusive ST distributions for n=%i"%j, "brNDC")
+    if(ExcOrInc=="Inc"):
+        legend = TLegend(0.35, 0.68, 0.8, 0.85, "Inclusive ST distributions for n=%i"%j, "brNDC")
    
     legend = TLegend(0.35, 0.68, 0.8, 0.85, "Exclusive ST distributions for n=%i"%j, "brNDC")
     legend.SetTextSize(0.04);
@@ -191,44 +211,61 @@ def FitAndDrawST(stHist,j,ExcOrInc):
     legend.SetBorderSize(0);
     legend.SetFillStyle(1001);
     legend.SetFillColor(10);
-    if argv[4] == "useMET" :
-        #legend.AddEntry(stHist,"ST using MET","lp");
-        legend.AddEntry(stHist,"data","lp");
+    legend.AddEntry(stHist,"data","lp");
     legend.Draw()
 
-    STexcComparisons[j-2].cd()
-    lowerExcPads.append(TPad("Exc%02iratiopad"%j, "ratiopad1", 0, 0.04, 1, 0.3))
-    lowerExcPads[j-2].SetTopMargin(5)
-    lowerExcPads[j-2].SetBottomMargin(0.2)
-    lowerExcPads[j-2].Draw()
-    lowerExcPads[j-2].cd()
+    LowerPadName = "%s%02iratiopad"%(ExcOrInc,j)
+    STcomparisons[canvasName].cd()
+    lowerPads[LowerPadName] = (TPad(LowerPadName, "ratiopad1", 0, 0.04, 1, 0.3))
+    lowerPads[LowerPadName].SetTopMargin(5)
+    lowerPads[LowerPadName].SetBottomMargin(0.2)
+    lowerPads[LowerPadName].Draw()
+    lowerPads[LowerPadName].cd()
 
-    if argv[4] == "useMET" :
-        stExcMETRatio = stHist.Clone("stExcMETRatio")
-        stExcMETRatio.GetXaxis().SetLabelSize(.08)
-        stExcMETRatio.GetXaxis().SetTitle("")
-        stExcMETRatio.GetYaxis().SetTitle("Ratio to n=2")
-        stExcMETRatio.GetYaxis().SetLabelSize(.075)
-        stExcMETRatio.GetYaxis().SetTitleSize(.1)
-        stExcMETRatio.GetYaxis().SetTitleOffset(.3)
-        stExcMETRatio.Divide(stExc2METhist)
-        stExcMETRatio.SetTitle("")
-        stExcMETRatio.SetMarkerColor(kBlack)
-        stExcMETRatio.SetMarkerStyle(8)
-        stExcMETRatio.SetMarkerSize(0.7)
-        stExcMETRatio.Draw("EP")
-        stExcMETRatio.SetStats(0)
-    STexcComparisons[j-2].Write()
+    stExcRatio = stHist.Clone("stExcRatio")
+    stExcRatio.GetXaxis().SetLabelSize(.08)
+    stExcRatio.GetXaxis().SetTitle("")
+    stExcRatio.GetYaxis().SetTitle("Ratio to n=2")
+    stExcRatio.GetYaxis().SetLabelSize(.075)
+    stExcRatio.GetYaxis().SetTitleSize(.1)
+    stExcRatio.GetYaxis().SetTitleOffset(.3)
+    stExcRatio.Divide(stExc2Hist)
+    stExcRatio.SetTitle("")
+    stExcRatio.SetMarkerColor(kBlack)
+    stExcRatio.SetMarkerStyle(8)
+    stExcRatio.SetMarkerSize(0.7)
+    stExcRatio.Draw("EP")
+    stExcRatio.SetStats(0)
+    STcomparisons[canvasName].Write()
 
-    STincComparisons.append(TCanvas("stInc%02iCanvas"%j, "ST, N>=%i"%j, 800, 800))
-    STincComparisons[j-2].cd()
-    upperIncPads.append(TPad("Inc%02ipad"%j, "pad1", 0, 0.3, 1, 1.0))
-    upperIncPads[j-2].SetBottomMargin(2)
-    upperIncPads[j-2].Draw()
-    upperIncPads[j-2].cd()
-    upperIncPads[j-2].SetLogy()
+    if (WriteDataCards and ExcOrInc=="Inc"):
+        outputForLimits = open("output/%s_Inclusive%i.txt"%(argv[2],j), "w")
+        outputForLimits.write(" STMin    ::   Observed Data   ::   Expected Bkg   ::  Shape Unc  \n")
+        for stmin in range(20, 75):
+            observed=0
+            startbin=stHist.GetXaxis().FindBin(float(stmin*100))
+            for stbin in range (startbin, stHist.GetXaxis().GetNbins()):
+                observed+=stHist.GetBinContent(stbin)
+            expected = fbest.Integral(stmin*100, 14000)/binwidth
+            #expected = fbest.Integral(stmin*100, 9999999)/100
+                    #expected = f2Normalized.Integral(stmin*100, 9999999)/100
+            shapeUnc = abs(fLow.Integral(stmin*100, 14000)/binwidth-expected)/expected +1
+                    #shapeUnc = abs(fLow.Integral(stmin*100, 999999)/100-expected)/expected +1
+                    #shapeUnc = abs(f1Normalized.Integral(stmin*100, 999999)/100-expected)/expected +1
+                    #max(abs(f2Normalized.Integral(stmin*100, 999999)/100-expected),  #the 100's here are the bin width in GeV
+                    #abs(f3Normalized.Integral(stmin*100, 999999)/100-expected)
+                    #abs(f2_exc3Normalized.Integral(stmin*100, 999999)/100-expected),
+                    #abs(f3_exc3Normalized.Integral(stmin*100, 999999)/100-expected)
+                    #) /expected + 1
+            if not ((j>5 and stmin<23) or (j>8 and stmin<25) or (j>10 and stmin<26)):
+                outputForLimits.write("%i :: %i :: %f :: %f\n" % (stmin*100, observed, expected, shapeUnc))
+        outputForLimits.close()
 
 
+
+#################################################################################
+#  Main
+#################################################################################
 
 if argv[4] == "useMET" :
     # John fits
@@ -258,13 +295,23 @@ if argv[4] == "useMET" :
     f2_list["f2"]=f2
     f2_list["f3"]=f3
     f2_list["f4"]=f4
-    f2_list["f5"]=f5
+    #f2_list["f5"]=f5
  
     f3_list["f1_exc3"]=f1_exc3
     f3_list["f2_exc3"]=f2_exc3
     f3_list["f3_exc3"]=f3_exc3
     f3_list["f4_exc3"]=f4_exc3
-    f3_list["f5_exc3"]=f5_exc3
+    #f3_list["f5_exc3"]=f5_exc3
+
+    chi2graphs["f1"]=TGraph()
+    chi2graphs["f2"]=TGraph()
+    chi2graphs["f3"]=TGraph()
+    chi2graphs["f4"]=TGraph()
+    chi2graphs["f1_exc3"]=TGraph()
+    chi2graphs["f2_exc3"]=TGraph()
+    chi2graphs["f3_exc3"]=TGraph()
+    chi2graphs["f4_exc3"]=TGraph()
+
  
     fLow=TF1("fLow", "[0]*(2*[1]/([2]*x)**[3]-[4]/([5] + [6]*x + x**2)**[7])", 1000, STup)
     Funcs ={0:f1,1:f2,2:f3,3:f1_exc3,4:f2_exc3,5:f3_exc3,6:fLow}
@@ -287,7 +334,7 @@ for i in range(2,4):
                 f2_list["f2"].SetParameters(2.4e6, -3, 4.7, 0.4)
                 f2_list["f3"].SetParameters(6e5, 0.4, -0.1, 4)
                 f2_list["f4"].SetParameters(1.5e9, -12,  -0.7)
-                f2_list["f5"].SetParameters(2e5, 0, 6, 0.7)
+                #f2_list["f5"].SetParameters(2e5, 0, 6, 0.7)
 
 		for fname in f2_list:
 			customfit(f2_list[fname],stExcMEThist,"exc2")
@@ -297,7 +344,7 @@ for i in range(2,4):
                 f2_list["f2"].SetLineColor(kBlack)
                 f2_list["f3"].SetLineColor(kViolet)
                 f2_list["f4"].SetLineColor(kPink)
-                f2_list["f5"].SetLineColor(kYellow)
+                #f2_list["f5"].SetLineColor(kYellow)
 
             if i==3:
 		# John's parameter
@@ -311,7 +358,7 @@ for i in range(2,4):
                 f3_list["f2_exc3"].SetParameters(2.4e6, -3, 4.7, 0.4)
                 f3_list["f3_exc3"].SetParameters(6e5, 0.4, -0.1, 4)
                 f3_list["f4_exc3"].SetParameters(1.5e9, -12,  -0.7)
-                f3_list["f5_exc3"].SetParameters(2e5, 0, 6, 0.7)
+                #f3_list["f5_exc3"].SetParameters(2e5, 0, 6, 0.7)
 
 		for fname in f3_list:
 			customfit(f3_list[fname],stExcMEThist,"exc3")
@@ -320,7 +367,7 @@ for i in range(2,4):
                 f3_list["f2_exc3"].SetLineColor(kCyan)
                 f3_list["f3_exc3"].SetLineColor(kMagenta)
                 f3_list["f4_exc3"].SetLineColor(kOrange)
-                f3_list["f5_exc3"].SetLineColor(kSpring+10)
+                #f3_list["f5_exc3"].SetLineColor(kSpring+10)
 
                 #print "f1 has value " + str(f1.Eval(6500)) + " at ST=6500"
                 #print "f2 has value " + str(f2.Eval(6500)) + " at ST=6500"
@@ -335,196 +382,37 @@ print "The minimum chi2 is %s %.3f" % (Chi2List.index(min(Chi2List)),min(Chi2Lis
 
 for j in range(2,11):
     if argv[4] == "useMET" :
-        stExcMEThist=PlotsDir.Get("stExc%02iHist"%j)
-        stIncMEThist=PlotsDir.Get("stInc%02iHist"%j)
+        stExcMEThist =PlotsDir.Get("stExc%02iHist"%j)
+        stIncMEThist =PlotsDir.Get("stInc%02iHist"%j)
+        stExc2METhist=PlotsDir.Get("stExc02Hist")
     
-    if rebin :
-        stExcMEThist.Rebin(10)
-        stIncMEThist.Rebin(10)
-    
-    FitAndDrawST(stExcMEThist,j,"Exc")
-    # For Inclusive STs
-    if argv[4] == "useMET" :
-        stIncMEThist.GetXaxis().SetTitle("S_{T} (GeV)")
-        stIncMEThist.GetYaxis().SetTitle("Events")
-        stIncMEThist.SetMarkerColor(kBlack)
-        stIncMEThist.SetMarkerStyle(8)
-        stIncMEThist.SetMarkerSize(0.7)
-        stIncMEThist.Draw("EP")
-        lowerNormBin = stIncMEThist.GetXaxis().FindBin(float(fitNormRanges.getLowerNormBound("inc%i"%j)))
-        upperNormBin = stIncMEThist.GetXaxis().FindBin(float(fitNormRanges.getUpperNormBound("inc%i"%j)))
-        lowerNormEdge = stIncMEThist.GetXaxis().GetBinLowEdge(lowerNormBin)
-        upperNormEdge = stIncMEThist.GetXaxis().GetBinLowEdge(upperNormBin)
-        binwidth      = stIncMEThist.GetXaxis().GetBinWidth(upperNormBin)
-        stIncMEThist.GetXaxis().SetRangeUser(lowerNormEdge, STup)
-        stIncMEThist.SetMinimum(1e-1)
-        
-        print "in N=%i, upperNormEdge = %s, lowerNormEdge = %s" % (j,upperNormEdge, lowerNormEdge)
-
-        print "\nPrinting info of Inclusive %i fittings:" % j  
-        f1Normalized = getNormalizedFunction( f1, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        f1Normalized.Draw("SAME")
-        f2Normalized = getNormalizedFunction( f2, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        f2Normalized.Draw("SAME")
-        f3Normalized = getNormalizedFunction( f3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        f3Normalized.Draw("SAME")
-        f4Normalized = getNormalizedFunction( f4, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        f4Normalized.Draw("SAME")
-        #f5Normalized = getNormalizedFunction( f5, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        #f5Normalized.Draw("SAME")
-        f1_exc3Normalized = getNormalizedFunction( f1_exc3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        f1_exc3Normalized.Draw("SAME")
-        f2_exc3Normalized = getNormalizedFunction( f2_exc3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        f2_exc3Normalized.Draw("SAME")
-        f3_exc3Normalized = getNormalizedFunction( f3_exc3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        f3_exc3Normalized.Draw("SAME")
-        f4_exc3Normalized = getNormalizedFunction( f4_exc3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        f4_exc3Normalized.Draw("SAME")
-        #f5_exc3Normalized = getNormalizedFunction( f5_exc3, stIncMEThist, lowerNormBin,upperNormBin, lowerNormEdge, upperNormEdge, binwidth )
-        #f5_exc3Normalized.Draw("SAME")
-
-        chi2_f1      = stIncMEThist.Chisquare(f1Normalized,"R")/ f1Normalized.GetNDF()
-        chi2_f2      = stIncMEThist.Chisquare(f2Normalized,"R")/ f2Normalized.GetNDF()
-        chi2_f3      = stIncMEThist.Chisquare(f3Normalized,"R")/ f3Normalized.GetNDF()
-        chi2_f4      = stIncMEThist.Chisquare(f4Normalized,"R")/ f4Normalized.GetNDF()
-        #chi2_f5      = stIncMEThist.Chisquare(f5Normalized,"R")/ f5Normalized.GetNDF()
-        chi2_f1_exc3 = stIncMEThist.Chisquare(f1_exc3Normalized,"R")/f1_exc3Normalized.GetNDF()
-        chi2_f2_exc3 = stIncMEThist.Chisquare(f2_exc3Normalized,"R")/f2_exc3Normalized.GetNDF()
-        chi2_f3_exc3 = stIncMEThist.Chisquare(f3_exc3Normalized,"R")/f3_exc3Normalized.GetNDF()
-        chi2_f4_exc3 = stIncMEThist.Chisquare(f4_exc3Normalized,"R")/f4_exc3Normalized.GetNDF()
-        #chi2_f5_exc3 = stIncMEThist.Chisquare(f5_exc3Normalized,"R")/f5_exc3Normalized.GetNDF()
- 
-        #print "The chi2/Ndof for %s is %s" %( f1Normalized.GetName()	        , chi2_f1    ) 
-	#print "The chi2/Ndof for %s is %s" %( f2Normalized.GetName()	        , chi2_f2    )
-	#print "The chi2/Ndof for %s is %s" %( f3Normalized.GetName()	        , chi2_f3    )
-	#print "The chi2/Ndof for %s is %s" %( f1_exc3Normalized.GetName()	, chi2_f1_exc3)
-	#print "The chi2/Ndof for %s is %s" %( f2_exc3Normalized.GetName()	, chi2_f2_exc3)
-	#print "The chi2/Ndof for %s is %s" %( f3_exc3Normalized.GetName()	, chi2_f3_exc3)
-
-        chi2graph_f1.SetPoint( chi2graph_f1.GetN(), j , chi2_f1)
-        chi2graph_f2.SetPoint( chi2graph_f2.GetN(), j , chi2_f2)
-        chi2graph_f3.SetPoint( chi2graph_f3.GetN(), j , chi2_f3)
-        chi2graph_f4.SetPoint( chi2graph_f4.GetN(), j , chi2_f4)
-        #chi2graph_f5.SetPoint( chi2graph_f5.GetN(), j , chi2_f5)
-        chi2graph_f1_exc3.SetPoint( chi2graph_f1_exc3.GetN(), j , chi2_f1_exc3)
-        chi2graph_f2_exc3.SetPoint( chi2graph_f2_exc3.GetN(), j , chi2_f2_exc3)
-        chi2graph_f3_exc3.SetPoint( chi2graph_f3_exc3.GetN(), j , chi2_f3_exc3)
-        chi2graph_f4_exc3.SetPoint( chi2graph_f4_exc3.GetN(), j , chi2_f4_exc3)
-        #chi2graph_f5_exc3.SetPoint( chi2graph_f5_exc3.GetN(), j , chi2_f5_exc3)
-
-        #chi2_list = [chi2_f1, chi2_f2, chi2_f3,chi2_f4,chi2_f5, chi2_f1_exc3, chi2_f2_exc3, chi2_f3_exc3,chi2_f4_exc3,chi2_f5_exc3]
-        #functions = [f1Normalized,f2Normalized,f3Normalized,f4Normalized,f5Normalized,f1_exc3Normalized,f2_exc3Normalized,f3_exc3Normalized ,f4_exc3Normalized ,f5_exc3Normalized ]
-        chi2_list = [chi2_f1, chi2_f2, chi2_f3,chi2_f4, chi2_f1_exc3, chi2_f2_exc3, chi2_f3_exc3,chi2_f4_exc3]
-        chi2_devlist =[abs(chi2_f1-1),abs(chi2_f2-1),abs(chi2_f3-1),abs(chi2_f4-1),abs(chi2_f1_exc3-1),abs(chi2_f2_exc3-1),abs(chi2_f3_exc3-1),abs(chi2_f4_exc3-1)]
-        functions = [f1Normalized,f2Normalized,f3Normalized,f4Normalized,f1_exc3Normalized,f2_exc3Normalized,f3_exc3Normalized ,f4_exc3Normalized]
-        #fbest    = f2Normalized
-        #fbest    = f2_exc3Normalized
-        fbest     = functions[ chi2_devlist.index( min(chi2_devlist) ) ]
-        #fLow     = getSymmetrizedFuntion( fbest, functions, upperNormEdge, 14000)
-        fLow     = getSymmetrizedFuntion( fbest, functions, 3000, 14000)
-
-        fLow.SetLineColor(kBlue)
-        fLow.SetLineStyle(6)
-        fLow.Draw("SAME")
-        outputForLimits = open("output/%s_Inclusive%i.txt"%(argv[2],j), "w")
-        outputForLimits.write(" STMin    ::   Observed Data   ::   Expected Bkg   ::  Shape Unc  \n")
-        for stmin in range(20, 75):
-            observed=0
-            startbin=stIncMEThist.GetXaxis().FindBin(float(stmin*100))
-            for stbin in range (startbin, stIncMEThist.GetXaxis().GetNbins()):
-                observed+=stIncMEThist.GetBinContent(stbin)
-            expected = fbest.Integral(stmin*100, 14000)/binwidth
-            #expected = fbest.Integral(stmin*100, 9999999)/100
-                    #expected = f2Normalized.Integral(stmin*100, 9999999)/100
-            shapeUnc = abs(fLow.Integral(stmin*100, 14000)/binwidth-expected)/expected +1
-                    #shapeUnc = abs(fLow.Integral(stmin*100, 999999)/100-expected)/expected +1
-                    #shapeUnc = abs(f1Normalized.Integral(stmin*100, 999999)/100-expected)/expected +1
-                    #max(abs(f2Normalized.Integral(stmin*100, 999999)/100-expected),  #the 100's here are the bin width in GeV
-                    #abs(f3Normalized.Integral(stmin*100, 999999)/100-expected)
-                    #abs(f2_exc3Normalized.Integral(stmin*100, 999999)/100-expected),
-                    #abs(f3_exc3Normalized.Integral(stmin*100, 999999)/100-expected)
-                    #) /expected + 1
-            if not ((j>5 and stmin<23) or (j>8 and stmin<25) or (j>10 and stmin<26)):
-                outputForLimits.write("%i :: %i :: %f :: %f\n" % (stmin*100, observed, expected, shapeUnc))
-        outputForLimits.close()
-
-    legend = TLegend(0.35, 0.68, 0.8, 0.85, "Inclusive ST distributions for n>=%i"%j, "brNDC")
-    legend.SetTextSize(0.04);
-    legend.SetLineColor(1);
-    legend.SetBorderSize(0);
-    legend.SetLineStyle(1);
-    legend.SetLineWidth(1);
-    legend.SetFillStyle(1001);
-    legend.SetFillColor(10);
-    if argv[4] == "useMET" :
-        #legend.AddEntry(stExcMEThist,"ST using MET","lp");
-        legend.AddEntry(stExcMEThist,"data","lp");
-    legend.Draw()
-
-    STincComparisons[j-2].cd()
-    lowerIncPads.append(TPad("Inc%02iratiopad"%j, "incratiopad1", 0, 0.04, 1, 0.3))
-    lowerIncPads[j-2].SetTopMargin(5)
-    lowerIncPads[j-2].SetBottomMargin(0.2)
-    lowerIncPads[j-2].Draw()
-    lowerIncPads[j-2].cd()
-
-    if argv[4] == "useMET" :
-        stIncMETRatio = stIncMEThist.Clone("stIncMETRatio")
-        stIncMETRatio.GetXaxis().SetLabelSize(.08)
-        stIncMETRatio.GetYaxis().SetTitle("Ratio to n=2")
-        stIncMETRatio.GetYaxis().SetLabelSize(.075)
-        stIncMETRatio.GetYaxis().SetTitleSize(.1)
-        stIncMETRatio.GetYaxis().SetTitleOffset(.3)
-        stIncMETRatio.GetXaxis().SetTitle("")
-        #stIncMETRatio.Divide(stExc2METhist)
-        stIncMETRatio.Divide(stExc2METhist)
-        stIncMETRatio.SetStats(0)
-        stIncMETRatio.SetTitle("")
-        stIncMETRatio.SetMarkerColor(kBlack)
-        stIncMETRatio.SetMarkerStyle(8)
-        stIncMETRatio.SetMarkerSize(0.7)
-        stIncMETRatio.Draw("EP")
-
-    STincComparisons[j-2].Write()
+    FitAndDrawST(stExcMEThist,j,"Exc",stExc2METhist)
+    FitAndDrawST(stIncMEThist,j,"Inc",stExc2METhist)
 
 c1= TCanvas("chi2graph","Chi2 vs N", 800,600)
-c1.cd()
-chi2graph_f1.SetLineColor(kRed)
-chi2graph_f2.SetLineColor(kBlack)
-chi2graph_f3.SetLineColor(kViolet)
-chi2graph_f4.SetLineColor(kPink)
+OutFile.Append(c1)
+
+chi2graphs["f1"].SetLineColor(kRed)
+chi2graphs["f2"].SetLineColor(kBlack)
+chi2graphs["f3"].SetLineColor(kViolet)
+chi2graphs["f4"].SetLineColor(kPink)
+chi2graphs["f1_exc3"].SetLineColor(kGreen)
+chi2graphs["f2_exc3"].SetLineColor(kCyan)
+chi2graphs["f3_exc3"].SetLineColor(kMagenta)
+chi2graphs["f4_exc3"].SetLineColor(kOrange)
 #chi2graph_f5.SetLineColor(kYellow)
-chi2graph_f1_exc3.SetLineColor(kGreen)
-chi2graph_f2_exc3.SetLineColor(kCyan)
-chi2graph_f3_exc3.SetLineColor(kMagenta)
-chi2graph_f4_exc3.SetLineColor(kOrange)
 #chi2graph_f5_exc3.SetLineColor(kSpring+10)
 
-chi2graph_f1.Draw()
-chi2graph_f2.Draw("SAME")
-chi2graph_f3.Draw("SAME")
-chi2graph_f4.Draw("SAME")
-#chi2graph_f5.Draw("SAME")
-chi2graph_f1_exc3.Draw("SAME")
-chi2graph_f2_exc3.Draw("SAME")
-chi2graph_f3_exc3.Draw("SAME")
-chi2graph_f4_exc3.Draw("SAME")
-#chi2graph_f5_exc3.Draw("SAME")
-chi2graph_f1.SetTitle("Chi2/Ndof for different fit functions")
-chi2graph_f1.GetXaxis().SetTitle("Inclusive Multiplicity")
-chi2graph_f1.GetYaxis().SetTitle("Chi2/Ndof")
-chi2graph_f1.GetYaxis().SetRangeUser(0,50)
 leg = TLegend(0.7,0.7,0.9,0.9)
-leg.AddEntry(chi2graph_f1, "f1","L")
-leg.AddEntry(chi2graph_f2, "f2","L")
-leg.AddEntry(chi2graph_f3, "f3","L")
-leg.AddEntry(chi2graph_f4, "f4","L")
-#leg.AddEntry(chi2graph_f5, "f5","L")
-leg.AddEntry(chi2graph_f1_exc3, "f1_exc3","L")
-leg.AddEntry(chi2graph_f2_exc3, "f2_exc3","L")
-leg.AddEntry(chi2graph_f3_exc3, "f3_exc3","L")
-leg.AddEntry(chi2graph_f4_exc3, "f4_exc3","L")
-#leg.AddEntry(chi2graph_f5_exc3, "f5_exc3","L")
+chi2graphs["f1"].Draw()
+for gname in chi2graphs:
+   print "now drawing chi2 graphs %s"%gname
+   chi2graphs[gname].Draw("SAME")
+   leg.AddEntry(chi2graphs[gname],gname,"L")
+chi2graphs["f1"].SetTitle("Chi2/Ndof for different fit functions")
+chi2graphs["f1"].GetXaxis().SetTitle("Inclusive Multiplicity")
+chi2graphs["f1"].GetYaxis().SetTitle("Chi2/Ndof")
+chi2graphs["f1"].GetYaxis().SetRangeUser(0,50)
 leg.SetFillStyle(1001);
 leg.SetFillColor(0);
 leg.Draw()
