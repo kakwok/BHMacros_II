@@ -25,24 +25,24 @@ L = 0.12*W_ref
 R = 0.04*W_ref
 
 ##################################################################
-STcomparisons = {}
-upperPads     = {}
-lowerPads     = {}
+STcomparisons = {}   #  Dictionary of canvas
+upperPads     = {}   #  Dictionary of upperPads in Canvas
+lowerPads     = {}   #  Dictionary of lowerPads in Canvas
 Chi2List     = []
 f2_list      = {}     #  functions for fitted to ST n=2  
 f3_list      = {}     #  functions for fitted to ST n=3
 f2_norm_list = {}     #  functions for fitted to ST n=2 after normalization
 f3_norm_list = {}     #  functions for fitted to ST n=2 after normalization
 PlotsFile = TFile(argv[1])
-PlotsDir = PlotsFile.Get("ST")
+#PlotsDir = PlotsFile.Get("ST")
+PlotsDir = PlotsFile.Get("ST_tight")
 OutFile = TFile("output/%s"%argv[2], "RECREATE")
 chi2graphs   = {}
 fitNormRanges = FitAndNormRange(argv[3])
 fitNormRanges.showFitRanges()
 fitNormRanges.showNormRanges()
 rebin          = False 
-WriteDataCards = True
-#WriteDataCards = False
+WriteDataCards = False
 #f_outlier     = null
 
 
@@ -203,9 +203,8 @@ def FitAndDrawST(stHist,j,ExcOrInc,stExc2Hist):
     if(ExcOrInc=="Exc"):
         legend = TLegend(0.35, 0.68, 0.8, 0.85, "Exclusive ST distributions for n=%i"%j, "brNDC")
     if(ExcOrInc=="Inc"):
-        legend = TLegend(0.35, 0.68, 0.8, 0.85, "Inclusive ST distributions for n=%i"%j, "brNDC")
+        legend = TLegend(0.35, 0.68, 0.8, 0.85, "Inclusive ST distributions for n>=%i"%j, "brNDC")
    
-    legend = TLegend(0.35, 0.68, 0.8, 0.85, "Exclusive ST distributions for n=%i"%j, "brNDC")
     legend.SetTextSize(0.04);
     legend.SetLineWidth(1);
     legend.SetBorderSize(0);
@@ -267,61 +266,72 @@ def FitAndDrawST(stHist,j,ExcOrInc,stExc2Hist):
 #  Main
 #################################################################################
 
-if argv[4] == "useMET" :
-    # John fits
-    #f1 = TF1("f1", "[0]/([1]+x)**[2]", 1000, STup)
-    #f2 = TF1("f2", "([0]*(1+x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, STup)
-    #f3 = TF1("f3", "[0]/([1] + [2]*x + x**2)**[3]", 1000, STup)
-    #f4 = TF1("f4", "([0]*(1+x)^[1])/(x**([2]*TMath::Log(x)))", 1000, STup)
-    #f5 = TF1("f5", "([0]*(1-x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, STup)
-    #f1_exc3 = TF1("f1_exc3", "[0]/([1]+x)**[2]", 1000, STup)
-    #f2_exc3 = TF1("f2_exc3", "([0]*(1+x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, STup)
-    #f3_exc3 = TF1("f3_exc3", "[0]/([1] + [2]*x + x**2)**[3]", 1000, STup)
-    #f4_exc3 = TF1("f4_exc3", "([0]*(1+x)^[1])/(x**([2]*TMath::Log(x)))", 1000, STup)
-    #f5_exc3 = TF1("f5_exc3", "([0]*(1-x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, STup)
+# John fits
+#f1 = TF1("f1", "[0]/([1]+x)**[2]", 1000, STup)
+#f2 = TF1("f2", "([0]*(1+x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, STup)
+#f3 = TF1("f3", "[0]/([1] + [2]*x + x**2)**[3]", 1000, STup)
+#f4 = TF1("f4", "([0]*(1+x)^[1])/(x**([2]*TMath::Log(x)))", 1000, STup)
+#f5 = TF1("f5", "([0]*(1-x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, STup)
+#f1_exc3 = TF1("f1_exc3", "[0]/([1]+x)**[2]", 1000, STup)
+#f2_exc3 = TF1("f2_exc3", "([0]*(1+x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, STup)
+#f3_exc3 = TF1("f3_exc3", "[0]/([1] + [2]*x + x**2)**[3]", 1000, STup)
+#f4_exc3 = TF1("f4_exc3", "([0]*(1+x)^[1])/(x**([2]*TMath::Log(x)))", 1000, STup)
+#f5_exc3 = TF1("f5_exc3", "([0]*(1-x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, STup)
 
-    f1 = TF1("f1", "[0]/([1]+0.001*x)**[2]", 1000, STup)
-    f2 = TF1("f2", "([0]*(1+x*0.001)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))", 1000, STup)
-    f3 = TF1("f3", "[0]/([1] + [2]*x*0.001 + (0.001*x)**2)**[3]", 1000, STup)
-    f4 = TF1("f4", "([0]*(1+0.001*x)^[1])/((0.001*x)**([2]*TMath::Log(x*0.001)))", 1000, STup)
-    f5 = TF1("f5", "([0]*(1-0.001*x)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))", 1000, STup)
-    f1_exc3 = TF1("f1_exc3", "[0]/([1]+0.001*x)**[2]", 1000, STup)
-    f2_exc3 = TF1("f2_exc3", "([0]*(1+x*0.001)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))", 1000, STup)
-    f3_exc3 = TF1("f3_exc3", "[0]/([1] + [2]*x*0.001 + (0.001*x)**2)**[3]", 1000, STup)
-    f4_exc3 = TF1("f4_exc3", "([0]*(1+0.001*x)^[1])/((0.001*x)**([2]*TMath::Log(x*0.001)))", 1000, STup)
-    f5_exc3 = TF1("f5_exc3", "([0]*(1-0.001*x)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))", 1000, STup)
+f1 = TF1("f1", "[0]/([1]+0.001*x)**[2]", 1000, STup)
+f2 = TF1("f2", "([0]*(1+x*0.001)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))", 1000, STup)
+f3 = TF1("f3", "[0]/([1] + [2]*x*0.001 + (0.001*x)**2)**[3]", 1000, STup)
+f4 = TF1("f4", "([0]*(1+0.001*x)^[1])/((0.001*x)**([2]*TMath::Log(x*0.001)))", 1000, STup)
+f5 = TF1("f5", "([0]*(1-0.001*x)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))", 1000, STup)
+f1_exc3 = TF1("f1_exc3", "[0]/([1]+0.001*x)**[2]", 1000, STup)
+f2_exc3 = TF1("f2_exc3", "([0]*(1+x*0.001)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))", 1000, STup)
+f3_exc3 = TF1("f3_exc3", "[0]/([1] + [2]*x*0.001 + (0.001*x)**2)**[3]", 1000, STup)
+f4_exc3 = TF1("f4_exc3", "([0]*(1+0.001*x)^[1])/((0.001*x)**([2]*TMath::Log(x*0.001)))", 1000, STup)
+f5_exc3 = TF1("f5_exc3", "([0]*(1-0.001*x)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))", 1000, STup)
 
-    f2_list["f1"]=f1
-    f2_list["f2"]=f2
-    f2_list["f3"]=f3
-    f2_list["f4"]=f4
-    #f2_list["f5"]=f5
- 
-    f3_list["f1_exc3"]=f1_exc3
-    f3_list["f2_exc3"]=f2_exc3
-    f3_list["f3_exc3"]=f3_exc3
-    f3_list["f4_exc3"]=f4_exc3
-    #f3_list["f5_exc3"]=f5_exc3
+f2_list["f1"]=f1
+f2_list["f2"]=f2
+f2_list["f3"]=f3
+f2_list["f4"]=f4
+#f2_list["f5"]=f5
 
-    chi2graphs["f1"]=TGraph()
-    chi2graphs["f2"]=TGraph()
-    chi2graphs["f3"]=TGraph()
-    chi2graphs["f4"]=TGraph()
-    chi2graphs["f1_exc3"]=TGraph()
-    chi2graphs["f2_exc3"]=TGraph()
-    chi2graphs["f3_exc3"]=TGraph()
-    chi2graphs["f4_exc3"]=TGraph()
+f3_list["f1_exc3"]=f1_exc3
+f3_list["f2_exc3"]=f2_exc3
+f3_list["f3_exc3"]=f3_exc3
+f3_list["f4_exc3"]=f4_exc3
+#f3_list["f5_exc3"]=f5_exc3
 
- 
-    fLow=TF1("fLow", "[0]*(2*[1]/([2]*x)**[3]-[4]/([5] + [6]*x + x**2)**[7])", 1000, STup)
-    Funcs ={0:f1,1:f2,2:f3,3:f1_exc3,4:f2_exc3,5:f3_exc3,6:fLow}
+chi2graphs["f1"]=TGraph()
+chi2graphs["f2"]=TGraph()
+chi2graphs["f3"]=TGraph()
+chi2graphs["f4"]=TGraph()
+chi2graphs["f1_exc3"]=TGraph()
+chi2graphs["f2_exc3"]=TGraph()
+chi2graphs["f3_exc3"]=TGraph()
+chi2graphs["f4_exc3"]=TGraph()
+
+
+fLow=TF1("fLow", "[0]*(2*[1]/([2]*x)**[3]-[4]/([5] + [6]*x + x**2)**[7])", 1000, STup)
+Funcs ={0:f1,1:f2,2:f3,3:f1_exc3,4:f2_exc3,5:f3_exc3,6:fLow}
+
+##############################################
+##  Fit the ST histogram, get the functions
+##############################################
 for i in range(2,4):
-    if argv[4] == "useMET" :
-        stExcMEThist=PlotsDir.Get("stExc%02iHist"%i)
-        stExc2METhist=PlotsDir.Get("stExc02Hist")
-        stIncMEThist=PlotsDir.Get("stInc%02iHist"%i)
+    if(argv[4]=="useMET"):
+        if( "ST_tight" in PlotsDir.GetName()):
+            histname = ("stExc%02iHist_tight"%i)
+        else:
+            histname = ("stExc%02iHist"%i)
+    if(argv[4]=="useMHT"):
+        if( "ST_tight" in PlotsDir.GetName()):
+            histname = ("stExc%02iHistMHT_tight"%i)
+        else:
+            histname = ("stExc%02iHistMHT"%i)
+
+    stExcHist =PlotsDir.Get(histname)
+
     if (i == 2 or i==3 ):
-        if argv[4] == "useMET" :
             if i==2:
 		# John's parameter
                 #f1.SetParameters(2.08e9, 4.28e-3, 6.7)
@@ -337,7 +347,8 @@ for i in range(2,4):
                 #f2_list["f5"].SetParameters(2e5, 0, 6, 0.7)
 
 		for fname in f2_list:
-			customfit(f2_list[fname],stExcMEThist,"exc2")
+			print stExcHist.GetName()
+			customfit(f2_list[fname],stExcHist,"exc2")
 			f2_list[fname].SetLineStyle(6)
 
                 f2_list["f1"].SetLineColor(kRed)
@@ -361,7 +372,7 @@ for i in range(2,4):
                 #f3_list["f5_exc3"].SetParameters(2e5, 0, 6, 0.7)
 
 		for fname in f3_list:
-			customfit(f3_list[fname],stExcMEThist,"exc3")
+			customfit(f3_list[fname],stExcHist,"exc3")
 			f3_list[fname].SetLineStyle(4)
                 f3_list["f1_exc3"].SetLineColor(kGreen)
                 f3_list["f2_exc3"].SetLineColor(kCyan)
@@ -381,13 +392,32 @@ for i in range(2,4):
 print "The minimum chi2 is %s %.3f" % (Chi2List.index(min(Chi2List)),min(Chi2List))
 
 for j in range(2,11):
-    if argv[4] == "useMET" :
-        stExcMEThist =PlotsDir.Get("stExc%02iHist"%j)
-        stIncMEThist =PlotsDir.Get("stInc%02iHist"%j)
-        stExc2METhist=PlotsDir.Get("stExc02Hist")
+    if (argv[4]=="useMET"):
+        if("ST_tight" in PlotsDir.GetName()):
+           ExcHistName    =("stExc%02iHist_tight"%j)
+           IncHistName    =("stInc%02iHist_tight"%j)
+           Exc02HistName  =("stExc02Hist_tight")
+        else:
+           ExcHistName    =("stExc%02iHist"%j)
+           IncHistName    =("stInc%02iHist"%j)
+           Exc02HistName  =("stExc02Hist")
+          
+    if (argv[4]=="useMHT"):
+        if("ST_tight" in PlotsDir.GetName()):
+           ExcHistName    =("stExc%02iHistMHT_tight"%j)
+           IncHistName    =("stInc%02iHistMHT_tight"%j)
+           Exc02HistName  =("stExc02HistMHT_tight")
+        else:
+           ExcHistName    =("stExc%02iHistMHT"%j)
+           IncHistName    =("stInc%02iHistMHT"%j)
+           Exc02HistName  =("stExc02HistMHT")
+
+    stExcHist =PlotsDir.Get(ExcHistName  )
+    stIncHist =PlotsDir.Get(IncHistName  )
+    stExc2Hist=PlotsDir.Get(Exc02HistName)
     
-    FitAndDrawST(stExcMEThist,j,"Exc",stExc2METhist)
-    FitAndDrawST(stIncMEThist,j,"Inc",stExc2METhist)
+    FitAndDrawST(stExcHist,j,"Exc",stExc2Hist)
+    FitAndDrawST(stIncHist,j,"Inc",stExc2Hist)
 
 c1= TCanvas("chi2graph","Chi2 vs N", 800,600)
 OutFile.Append(c1)
