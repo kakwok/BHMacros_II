@@ -36,6 +36,7 @@ f23_list      = {}    #  functions for fitted to ST n<=3
 f2_norm_list = {}     #  functions for fitted to ST n=2 after normalization
 f3_norm_list = {}     #  functions for fitted to ST n=2 after normalization
 f23_norm_list = {}    #  functions for fitted to ST n<=3 after normalization
+PlotsFname = argv[1]
 PlotsFile = TFile(argv[1])
 PlotsDir = PlotsFile.Get("ST")
 #PlotsDir = PlotsFile.Get("ST_tight")
@@ -45,12 +46,12 @@ fitNormRanges = FitAndNormRange(argv[3])
 fitNormRanges.showFitRanges()
 fitNormRanges.showNormRanges()
 rebin          = False 
-WriteDataCards = False
+WriteDataCards = False 
 DrawUncertainty= True 
 #f_outlier     = null
 
 
-STup = 8000
+STup = 9000
 def getratio(f1,f2):
     formula = "("+f1.GetExpFormula("p").Data() + ")/(" + f2.GetExpFormula("p").Data()+")-1"
     fname = f1.GetName()+"_over_+"+f2.GetName()
@@ -116,6 +117,17 @@ def getRatioFillGraph(fLow, fUp, fbest):
         gUp.SetPoint(  gUp.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
     gDict={"gUp":gUp,"gDown":gDown,"gFill":gFill}
     return gDict
+
+# Return the mean value of bin content
+def getMeanBinContent(hist):
+    sumY=0
+    nFilledBin = 0
+    for ibin in range(1,hist.GetNbinsX()):
+        if( hist.GetBinContent(ibin)!=0):
+            sumY += hist.GetBinContent(ibin)
+            nFilledBin +=1
+    sumY = sumY /nFilledBin  
+    return sumY
        
 def getNormalizedFunction(f, hist, xlowbin, xupbin, refHist, xlowedge, xupedge, binwidth):
     debug = False;
@@ -124,12 +136,11 @@ def getNormalizedFunction(f, hist, xlowbin, xupbin, refHist, xlowedge, xupedge, 
 
     for normbin in range(xlowbin, xupbin):
         normBinTotal+=hist.GetBinContent(normbin)
-	refHistTotal+=refHist.GetBinContent(normbin)
 
-    normfactor =  (normBinTotal/f.Integral(xlowedge, xupedge))*binwidth # this assumes all the bins have the same width.
-    normfactor2=  normBinTotal/refHistTotal
+    # this assumes all the bins have the same width and the fit well describe the normalization range, which is OK, because it's close to fit range
+    normfactor =  (normBinTotal/f.Integral(xlowedge, xupedge))*binwidth 
     if debug:
-        print " The normfactor for %s is %.3f  bin sum=%s integral = %s refhist sum= %s, new norm=%.3f" % ( f.GetName(), normfactor, normBinTotal, f.Integral(xlowedge,xupedge),refHistTotal,normfactor2)
+        print " The normfactor for %s is %.3f  bin sum(numerator)=%s integral(denorminator) = %s" % ( f.GetName(), normfactor, normBinTotal, f.Integral(xlowedge,xupedge))
     fNormalized = f.Clone()
     fNormalized.SetRange(xlowedge, 14000)
     fNormalized.SetParameter(0, f.GetParameter(0)*normfactor)
@@ -161,9 +172,9 @@ def FitAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     if rebin :
         stHist.Rebin(10)
     # For exclusive STs
-    if ("Exc03" in stRefHist.GetName()):
-	    canvasName = "st%s%02iCanvas_Exc02"%(ExcOrInc,j)
     if ("Exc02" in stRefHist.GetName()):
+	    canvasName = "st%s%02iCanvas_Exc02"%(ExcOrInc,j)
+    if ("Exc03" in stRefHist.GetName()):
 	    canvasName = "st%s%02iCanvas_Exc03"%(ExcOrInc,j)
     if ("Exc0203" in stRefHist.GetName()):
 	    canvasName = "st%s%02iCanvas_Exc0203"%(ExcOrInc,j)
@@ -175,6 +186,7 @@ def FitAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     upperPads[UpperPadName].Draw()
     upperPads[UpperPadName].cd()
     upperPads[UpperPadName].SetLogy()
+    stHist.SetTitle("")
     stHist.GetYaxis().SetTitle("Events/100 GeV")
     stHist.SetMarkerColor(kBlack)
     stHist.SetMarkerStyle(8)
@@ -211,7 +223,7 @@ def FitAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     	    if(ExcOrInc=="Inc"):
                 chi2graphs[fname].SetPoint( chi2graphs[fname].GetN(), j , chi2)
     	    if not DrawUncertainty:
-	        fnorm.Draw("SAME")
+                fnorm.Draw("SAME")
     
     #fbest    = f2Normalized
     #fLow     = getSymmetrizedFuntion( fbest, functions, upperNormEdge, 14000)
@@ -231,6 +243,18 @@ def FitAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
         fUp.Draw("SAME")
         fbest.SetLineColor(kBlue)
         fbest.SetLineStyle(1)
+    else:
+        # Draw a legend for all functions
+        leg2 = TLegend(0.6,0.5, 0.85, 0.7,"", "brNDC")
+        leg2.SetNColumns(2)
+        leg2.SetBorderSize(0)
+        for fnorm in functions:
+            if(fnorm.GetName()==fbest.GetName()):
+                leg2.AddEntry(fnorm,fnorm.GetName()+"(best-fit)","l")
+            else:
+                leg2.AddEntry(fnorm,fnorm.GetName(),"l")
+        leg2.SetTextSize(0.03)
+        leg2.Draw("SAME")
 	fbest.Draw("SAME")
     fLow.SetLineColor(kBlue)
     fLow.Draw("SAME")
@@ -239,19 +263,33 @@ def FitAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     chi2_devlist = []
     functions    = []
 
-    legend = TLegend(0.6, 0.6, 0.8, 0.8,"", "brNDC")
+    legend = TLegend(0.6, 0.7, 0.8, 0.85,"", "brNDC")
     legend.SetTextSize(0.04);
     legend.SetLineWidth(1);
     legend.SetBorderSize(0);
     legend.SetFillStyle(1001);
     legend.SetFillColor(10);
     if(ExcOrInc=="Exc"):
-        legend.AddEntry(stHist,"Data: multiplicity =%i"%j,"ep");
+        if("QCD" in PlotsFname):
+            legend.AddEntry(stHist,"QCD: multiplicity =%i"%j,"ep");
+        else:
+            legend.AddEntry(stHist,"Data: multiplicity =%i"%j,"ep");
     if(ExcOrInc=="Inc"):
-        legend.AddEntry(stHist,"Data: multiplicity >=%i"%j,"ep");
+        if("QCD" in PlotsFname):
+            legend.AddEntry(stHist,"QCD: multiplicity >=%i"%j,"ep");
+        else:
+            legend.AddEntry(stHist,"Data: multiplicity >=%i"%j,"ep");
     if DrawUncertainty:
-	legend.AddEntry(fillGraph,"Background from data","fl");
+	legend.AddEntry(fillGraph,"Background from fit","fl");
     legend.Draw()
+
+    #CMS_lumi.CMS_lumi(STcomparisons[canvasName], iPeriod, iPos)
+
+    #STcomparisons[canvasName].cd()
+    #STcomparisons[canvasName].Update()
+    #STcomparisons[canvasName].RedrawAxis()
+    #frame = STcomparisons[canvasName].GetFrame()
+    #frame.Draw()
 
     LowerPadName = "%s%02iratiopad"%(ExcOrInc,j)
     STcomparisons[canvasName].cd()
@@ -264,8 +302,13 @@ def FitAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     # Save ST ratio
     stExcRatio = stHist.Clone("st%s%02i_RatioToExc%s"%(ExcOrInc,j,stRefHist.GetName()[6]))
     stExcRatio.Sumw2()
-    stExcRatio.GetYaxis().SetTitle("Ratio of %s%02i to n=%s"%(ExcOrInc,j,stRefHist.GetName()[6]))
+    if(ExcOrInc=="Exc"):
+        stExcRatio.GetYaxis().SetTitle("Ratio of n=%i to n=%s"%(j,stRefHist.GetName()[6]))
+    if(ExcOrInc=="Inc"):
+        stExcRatio.GetYaxis().SetTitle("Ratio of n>=%i to n=%s"%(j,stRefHist.GetName()[6]))
     stExcRatio.Divide(stRefHist)
+    print "%s has meanY =%s" %(stExcRatio.GetName(),getMeanBinContent(stExcRatio))
+    stExcRatio.GetYaxis().SetRangeUser(0,getMeanBinContent(stExcRatio)*2)
     stExcRatio.Write()
 
     # Reuse StExcRatio to draw lower panel of data
@@ -275,6 +318,7 @@ def FitAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
         stExcRatio.GetYaxis().SetTitle("(Data-Fit)/Fit")
         stExcRatio.Add(fbest,-1)    # Subtract best fit
         stExcRatio.Divide(fbest,1)  # Divide by best fit    
+        stExcRatio.GetYaxis().SetRangeUser(-1,1)
     stExcRatio.GetXaxis().SetLabelSize(0.1)
     stExcRatio.GetXaxis().SetTitleSize(0.1)
     stExcRatio.GetXaxis().SetTitle("S_{T} (GeV)")
@@ -302,9 +346,9 @@ def FitAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
         STcomparisons[canvasName].Write()
 
     if (WriteDataCards and ExcOrInc=="Inc"):
-        outputForLimits = open("output/%s_Inclusive%i.txt"%(argv[2],j), "w")
+        outputForLimits = open("output/%s_Inclusive%i.txt"%(argv[2].replace(".root",""),j), "w")
         outputForLimits.write(" STMin    ::   Observed Data   ::   Expected Bkg   ::  Shape Unc  \n")
-        for stmin in range(20, 75):
+        for stmin in range(20, 90):
             observed=0
             startbin=stHist.GetXaxis().FindBin(float(stmin*100))
             for stbin in range (startbin, stHist.GetXaxis().GetNbins()):
@@ -354,8 +398,9 @@ fnames = {"f1":f1_string,"f2":f2_string,"f3":f3_string,"f4":f4_string}
 for fname in fnames:
 	f2_list[fname]             = TF1(fname         ,fnames[fname],1000,STup)
 	f3_list[fname+"_exc3"]     = TF1(fname+"_exc3" ,fnames[fname],1000,STup)
-	f23_list[fname+"_exc23"]   = TF1(fname+"_exc23",fnames[fname],1000,STup)
-AllFitList = [f2_list,f3_list,f23_list]
+#	f23_list[fname+"_exc23"]   = TF1(fname+"_exc23",fnames[fname],1000,STup)
+#AllFitList = [f2_list,f3_list,f23_list]
+AllFitList = [f2_list,f3_list]
 
 chi2graphs["f1"]=TGraph()
 chi2graphs["f2"]=TGraph()
@@ -365,10 +410,10 @@ chi2graphs["f1_exc3"]=TGraph()
 chi2graphs["f2_exc3"]=TGraph()
 chi2graphs["f3_exc3"]=TGraph()
 chi2graphs["f4_exc3"]=TGraph()
-chi2graphs["f1_exc23"]=TGraph()
-chi2graphs["f2_exc23"]=TGraph()
-chi2graphs["f3_exc23"]=TGraph()
-chi2graphs["f4_exc23"]=TGraph()
+#chi2graphs["f1_exc23"]=TGraph()
+#chi2graphs["f2_exc23"]=TGraph()
+#chi2graphs["f3_exc23"]=TGraph()
+#chi2graphs["f4_exc23"]=TGraph()
 
 
 #fLow=TF1("fLow", "[0]*(2*[1]/([2]*x)**[3]-[4]/([5] + [6]*x + x**2)**[7])", 1000, STup)
@@ -394,8 +439,8 @@ if(argv[4]=="useMHT"):
 
 stExc2Hist =PlotsDir.Get(histname02)
 stExc3Hist =PlotsDir.Get(histname03)
-stExc2or3Hist = stExc2Hist.Clone("stExc0203Hist")
-stExc2or3Hist.Add(stExc3Hist)
+#stExc2or3Hist = stExc2Hist.Clone("stExc0203Hist")
+#stExc2or3Hist.Add(stExc3Hist)
 #####    Fit N=2   ###############
 # Tutanon's function parameters
 f2_list["f1"].SetParameters(8e6, 0.5, 9)
@@ -406,12 +451,12 @@ f2_list["f4"].SetParameters(1.5e9, -12,  -0.7)
 for fname in f2_list:
 	print stExc2Hist.GetName()
 	customfit(f2_list[fname],stExc2Hist,"exc2")
-	f2_list[fname].SetLineStyle(6)
+	f2_list[fname].SetLineStyle(1)
 
-f2_list["f1"].SetLineColor(kRed)
-f2_list["f2"].SetLineColor(kBlack)
-f2_list["f3"].SetLineColor(kViolet)
-f2_list["f4"].SetLineColor(kPink)
+f2_list["f1"].SetLineColor(kBlack)
+f2_list["f2"].SetLineColor(kRed)
+f2_list["f3"].SetLineColor(kGreen)
+f2_list["f4"].SetLineColor(kMagenta)
 #f2_list["f5"].SetLineColor(kYellow)
 ####################################
 #####    Fit N=3   #################
@@ -423,27 +468,27 @@ f3_list["f4_exc3"].SetParameters(1.5e9, -12,  -0.7)
 
 for fname in f3_list:
 	customfit(f3_list[fname],stExc3Hist,"exc3")
-	f3_list[fname].SetLineStyle(4)
-f3_list["f1_exc3"].SetLineColor(kGreen)
-f3_list["f2_exc3"].SetLineColor(kCyan)
-f3_list["f3_exc3"].SetLineColor(kMagenta)
-f3_list["f4_exc3"].SetLineColor(kOrange)
+	f3_list[fname].SetLineStyle(2)
+f3_list["f1_exc3"].SetLineColor(kBlack)
+f3_list["f2_exc3"].SetLineColor(kRed)
+f3_list["f3_exc3"].SetLineColor(kGreen)
+f3_list["f4_exc3"].SetLineColor(kMagenta)
 #f3_list["f5_exc3"].SetLineColor(kSpring+10)
 
 #####    Fit N<=3   #################
 # Tutanon's function parameter
-f23_list["f1_exc23"].SetParameters(16e6, 0.5, 9)
-f23_list["f2_exc23"].SetParameters(4.8e6, -3, 4.7, 0.4)
-f23_list["f3_exc23"].SetParameters(12e5, 0.4, -0.1, 4)
-f23_list["f4_exc23"].SetParameters(3e9, -12,  -0.7)
-
-for fname in f23_list:
-	customfit(f23_list[fname],stExc2or3Hist,"exc2or3")
-	f23_list[fname].SetLineStyle(5)
-f23_list["f1_exc23"].SetLineColor(kGreen)
-f23_list["f2_exc23"].SetLineColor(kCyan)
-f23_list["f3_exc23"].SetLineColor(kMagenta)
-f23_list["f4_exc23"].SetLineColor(kOrange)
+#f23_list["f1_exc23"].SetParameters(16e6, 0.5, 9)
+#f23_list["f2_exc23"].SetParameters(4.8e6, -3, 4.7, 0.4)
+#f23_list["f3_exc23"].SetParameters(12e5, 0.4, -0.1, 4)
+#f23_list["f4_exc23"].SetParameters(3e9, -12,  -0.7)
+#
+#for fname in f23_list:
+#	customfit(f23_list[fname],stExc2or3Hist,"exc2or3")
+#	f23_list[fname].SetLineStyle(5)
+#f23_list["f1_exc23"].SetLineColor(kGreen)
+#f23_list["f2_exc23"].SetLineColor(kCyan)
+#f23_list["f3_exc23"].SetLineColor(kMagenta)
+#f23_list["f4_exc23"].SetLineColor(kOrange)
 
 
 #    print "Printing list of chi2"
@@ -451,7 +496,7 @@ f23_list["f4_exc23"].SetLineColor(kOrange)
 #	print Chi2List[j]
 print "The minimum chi2 is %s %.3f" % (Chi2List.index(min(Chi2List)),min(Chi2List))
 
-for j in range(2,11):
+for j in range(2,12):
     if (argv[4]=="useMET"):
         if("ST_tight" in PlotsDir.GetName()):
            ExcHistName    =("stExc%02iHist_tight"%j)
@@ -481,25 +526,31 @@ for j in range(2,11):
     stExc2Hist=PlotsDir.Get(Exc02HistName)
     stExc3Hist=PlotsDir.Get(Exc03HistName)
     
-    FitAndDrawST(stExcHist,j,"Exc",stExc2Hist,True)
+    if j==2:
+        FitAndDrawST(stExcHist,j,"Exc",stExc3Hist,True)
+    if j==3:
+        FitAndDrawST(stExcHist,j,"Exc",stExc2Hist,True)
+        
     FitAndDrawST(stIncHist,j,"Inc",stExc2Hist,True)
-    # For writing ratio histograms
-    FitAndDrawST(stExcHist,j,"Exc",stExc3Hist,False)
-    FitAndDrawST(stIncHist,j,"Inc",stExc3Hist,False)
-    FitAndDrawST(stExcHist,j,"Exc",stExc2or3Hist,False)
-    FitAndDrawST(stIncHist,j,"Inc",stExc2or3Hist,False)
+    FitAndDrawST(stIncHist,j,"Inc",stExc3Hist,True)
+    #FitAndDrawST(stExcHist,j,"Exc",stExc2or3Hist,False)
+    #FitAndDrawST(stIncHist,j,"Inc",stExc2or3Hist,False)
 
 c1= TCanvas("chi2graph","Chi2 vs N", 800,600)
 OutFile.Append(c1)
 
-chi2graphs["f1"].SetLineColor(kRed)
-chi2graphs["f2"].SetLineColor(kBlack)
-chi2graphs["f3"].SetLineColor(kViolet)
-chi2graphs["f4"].SetLineColor(kPink)
-chi2graphs["f1_exc3"].SetLineColor(kGreen)
-chi2graphs["f2_exc3"].SetLineColor(kCyan)
-chi2graphs["f3_exc3"].SetLineColor(kMagenta)
-chi2graphs["f4_exc3"].SetLineColor(kOrange)
+chi2graphs["f1"].SetLineColor(kBlack)
+chi2graphs["f2"].SetLineColor(kRed)
+chi2graphs["f3"].SetLineColor(kGreen)
+chi2graphs["f4"].SetLineColor(kMagenta)
+chi2graphs["f1_exc3"].SetLineColor(kBlack)
+chi2graphs["f2_exc3"].SetLineColor(kRed)
+chi2graphs["f3_exc3"].SetLineColor(kGreen)
+chi2graphs["f4_exc3"].SetLineColor(kMagenta)
+chi2graphs["f1_exc3"].SetLineStyle(2)
+chi2graphs["f2_exc3"].SetLineStyle(2)
+chi2graphs["f3_exc3"].SetLineStyle(2)
+chi2graphs["f4_exc3"].SetLineStyle(2)
 #chi2graph_f5.SetLineColor(kYellow)
 #chi2graph_f5_exc3.SetLineColor(kSpring+10)
 
