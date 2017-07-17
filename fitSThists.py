@@ -32,6 +32,7 @@ lowerPads     = {}   #  Dictionary of lowerPads in Canvas
 Chi2List     = []
 f2_list      = {}     #  functions for fitted to ST n=2  
 f3_list      = {}     #  functions for fitted to ST n=3
+f4_list      = {}     #  functions for fitted to ST n=3
 f23_list      = {}    #  functions for fitted to ST n<=3
 f2_norm_list = {}     #  functions for fitted to ST n=2 after normalization
 f3_norm_list = {}     #  functions for fitted to ST n=2 after normalization
@@ -47,7 +48,7 @@ fitNormRanges.showFitRanges()
 fitNormRanges.showNormRanges()
 rebin          = False 
 WriteDataCards = False 
-DrawUncertainty= True 
+DrawUncertainty= False 
 #f_outlier     = null
 
 
@@ -65,7 +66,7 @@ def symmetrize(f1,f2):
     return f1minusf2
 
 # Return the symmetrized funtion w.r.t. bestfit among functions in the range xlow, xup
-def getSymmetrizedFuntion(bestfit, functions, xlow, xup, flowORfUp):
+def getSymmetrizedFunction(bestfit, functions, xlow, xup, flowORfUp):
     bestfit_pos = 0
     fsym_pos = 0
     i=0
@@ -226,12 +227,12 @@ def FitAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
                 fnorm.Draw("SAME")
     
     #fbest    = f2Normalized
-    #fLow     = getSymmetrizedFuntion( fbest, functions, upperNormEdge, 14000)
+    #fLow     = getSymmetrizedFunction( fbest, functions, upperNormEdge, 14000)
     #fbest    = f2_norm_list["f2_norm"]
     fbest     = functions[ chi2_devlist.index( min(chi2_devlist) ) ]
     print "fbest is chosen to be %s\n"%fbest.GetName()
-    fLow     = getSymmetrizedFuntion( fbest, functions, 3000, 14000,"fLow")
-    fUp      = getSymmetrizedFuntion( fbest, functions, 3000, 14000,"fUp" )
+    fLow     = getSymmetrizedFunction( fbest, functions, 3000, 14000,"fLow")
+    fUp      = getSymmetrizedFunction( fbest, functions, 3000, 14000,"fUp" )
     fillGraph= getFillGraph( fLow, fUp )
     
     if DrawUncertainty:
@@ -396,25 +397,27 @@ f5_string = "([0]*(1-0.001*x)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))"
 # Define dictionaries of functions for fitting different histograms
 fnames = {"f1":f1_string,"f2":f2_string,"f3":f3_string,"f4":f4_string}
 for fname in fnames:
-	f2_list[fname]             = TF1(fname         ,fnames[fname],1000,STup)
-	f3_list[fname+"_exc3"]     = TF1(fname+"_exc3" ,fnames[fname],1000,STup)
-#	f23_list[fname+"_exc23"]   = TF1(fname+"_exc23",fnames[fname],1000,STup)
-#AllFitList = [f2_list,f3_list,f23_list]
-AllFitList = [f2_list,f3_list]
+	f2_list[fname+"_exc2"]     = TF1(fname+"_exc2",fnames[fname],1000,STup)
+	f3_list[fname+"_exc3"]     = TF1(fname+"_exc3",fnames[fname],1000,STup)
+	f4_list[fname+"_exc4"]     = TF1(fname+"_exc4",fnames[fname],1000,STup)
+AllFitList = [f3_list,f4_list]
+#AllFitList = [f2_list,f3_list]
 
-chi2graphs["f1"]=TGraph()
-chi2graphs["f2"]=TGraph()
-chi2graphs["f3"]=TGraph()
-chi2graphs["f4"]=TGraph()
-chi2graphs["f1_exc3"]=TGraph()
-chi2graphs["f2_exc3"]=TGraph()
-chi2graphs["f3_exc3"]=TGraph()
-chi2graphs["f4_exc3"]=TGraph()
-#chi2graphs["f1_exc23"]=TGraph()
-#chi2graphs["f2_exc23"]=TGraph()
-#chi2graphs["f3_exc23"]=TGraph()
-#chi2graphs["f4_exc23"]=TGraph()
-
+for flist in AllFitList:
+    for fname in flist:
+        chi2graphs[fname]=TGraph()
+        if("f1" in fname):
+            flist[fname].SetLineColor(kBlack)
+            chi2graphs[fname].SetLineColor(kBlack)
+        if("f2" in fname):
+            flist[fname].SetLineColor(kRed)
+            chi2graphs[fname].SetLineColor(kRed)
+        if("f3" in fname):
+            flist[fname].SetLineColor(kGreen)
+            chi2graphs[fname].SetLineColor(kGreen)
+        if("f4" in fname):
+            flist[fname].SetLineColor(kMagenta)
+            chi2graphs[fname].SetLineColor(kMagenta)
 
 #fLow=TF1("fLow", "[0]*(2*[1]/([2]*x)**[3]-[4]/([5] + [6]*x + x**2)**[7])", 1000, STup)
 #Funcs ={0:f1,1:f2,2:f3,3:f1_exc3,4:f2_exc3,5:f3_exc3,6:fLow}
@@ -426,70 +429,61 @@ if(argv[4]=="useMET"):
     if( "ST_tight" in PlotsDir.GetName()):
         histname02 = ("stExc02Hist_tight")
         histname03 = ("stExc03Hist_tight")
+        histname04 = ("stExc04Hist_tight")
     else:
         histname02 = ("stExc02Hist")
         histname03 = ("stExc03Hist")
+        histname04 = ("stExc04Hist")
 if(argv[4]=="useMHT"):
     if( "ST_tight" in PlotsDir.GetName()):
         histname02 = ("stExc02HistMHT_tight")
         histname03 = ("stExc03HistMHT_tight")
+        histname04 = ("stExc04HistMHT_tight")
     else:
         histname02 = ("stExc02HistMHT")
         histname03 = ("stExc03HistMHT")
+        histname04 = ("stExc04HistMHT")
 
 stExc2Hist =PlotsDir.Get(histname02)
 stExc3Hist =PlotsDir.Get(histname03)
+stExc4Hist =PlotsDir.Get(histname04)
 #stExc2or3Hist = stExc2Hist.Clone("stExc0203Hist")
 #stExc2or3Hist.Add(stExc3Hist)
+
 #####    Fit N=2   ###############
-# Tutanon's function parameters
-f2_list["f1"].SetParameters(8e6, 0.5, 9)
-f2_list["f2"].SetParameters(2.4e6, -3, 4.7, 0.4)
-f2_list["f3"].SetParameters(6e5, 0.4, -0.1, 4)
-f2_list["f4"].SetParameters(1.5e9, -12,  -0.7)
+f2_list["f1_exc2"].SetParameters(8e6, 0.5, 9)
+f2_list["f2_exc2"].SetParameters(2.4e6, -3, 4.7, 0.4)
+f2_list["f3_exc2"].SetParameters(6e5, 0.4, -0.1, 4)
+f2_list["f4_exc2"].SetParameters(1.5e9, -12,  -0.7)
 
-for fname in f2_list:
-	print stExc2Hist.GetName()
-	customfit(f2_list[fname],stExc2Hist,"exc2")
-	f2_list[fname].SetLineStyle(1)
-
-f2_list["f1"].SetLineColor(kBlack)
-f2_list["f2"].SetLineColor(kRed)
-f2_list["f3"].SetLineColor(kGreen)
-f2_list["f4"].SetLineColor(kMagenta)
-#f2_list["f5"].SetLineColor(kYellow)
-####################################
 #####    Fit N=3   #################
-# Tutanon's function parameter
-f3_list["f1_exc3"].SetParameters(8e6, 0.5, 9)
+f3_list["f1_exc3"].SetParameters(7e10, 0.5, 9)
 f3_list["f2_exc3"].SetParameters(2.4e6, -3, 4.7, 0.4)
 f3_list["f3_exc3"].SetParameters(6e5, 0.4, -0.1, 4)
 f3_list["f4_exc3"].SetParameters(1.5e9, -12,  -0.7)
 
-for fname in f3_list:
-	customfit(f3_list[fname],stExc3Hist,"exc3")
-	f3_list[fname].SetLineStyle(2)
-f3_list["f1_exc3"].SetLineColor(kBlack)
-f3_list["f2_exc3"].SetLineColor(kRed)
-f3_list["f3_exc3"].SetLineColor(kGreen)
-f3_list["f4_exc3"].SetLineColor(kMagenta)
-#f3_list["f5_exc3"].SetLineColor(kSpring+10)
+#####    Fit N=4   #################
+f4_list["f1_exc4"].SetParameters(8e6, 0.5, 9)
+f4_list["f2_exc4"].SetParameters(2.4e6, -3, 4.7, 0.4)
+f4_list["f3_exc4"].SetParameters(3e8, 0.3, -1, 4)
+f4_list["f4_exc4"].SetParameters(1.5e9, -12,  -0.7)
 
-#####    Fit N<=3   #################
-# Tutanon's function parameter
-#f23_list["f1_exc23"].SetParameters(16e6, 0.5, 9)
-#f23_list["f2_exc23"].SetParameters(4.8e6, -3, 4.7, 0.4)
-#f23_list["f3_exc23"].SetParameters(12e5, 0.4, -0.1, 4)
-#f23_list["f4_exc23"].SetParameters(3e9, -12,  -0.7)
-#
-#for fname in f23_list:
-#	customfit(f23_list[fname],stExc2or3Hist,"exc2or3")
-#	f23_list[fname].SetLineStyle(5)
-#f23_list["f1_exc23"].SetLineColor(kGreen)
-#f23_list["f2_exc23"].SetLineColor(kCyan)
-#f23_list["f3_exc23"].SetLineColor(kMagenta)
-#f23_list["f4_exc23"].SetLineColor(kOrange)
-
+for flist in AllFitList:
+    for fname in flist:
+        if("exc2" in fname):
+            refhist = stExc2Hist
+            flist[fname].SetLineStyle(1)
+            customfit( flist[fname], refhist,"exc2")
+        if("exc3" in fname):
+            refhist = stExc3Hist
+            flist[fname].SetLineStyle(2)
+            chi2graphs[fname].SetLineStyle(2)
+            customfit( flist[fname], refhist,"exc3")
+        if("exc4" in fname):
+            refhist = stExc4Hist
+            flist[fname].SetLineStyle(3)
+            chi2graphs[fname].SetLineStyle(3)
+            customfit( flist[fname], refhist,"exc4")
 
 #    print "Printing list of chi2"
 #for j in range(0,len(Chi2List)):
@@ -530,6 +524,8 @@ for j in range(2,12):
         FitAndDrawST(stExcHist,j,"Exc",stExc3Hist,True)
     if j==3:
         FitAndDrawST(stExcHist,j,"Exc",stExc2Hist,True)
+    if j==4:
+        FitAndDrawST(stExcHist,j,"Exc",stExc3Hist,True)
         
     FitAndDrawST(stIncHist,j,"Inc",stExc2Hist,True)
     FitAndDrawST(stIncHist,j,"Inc",stExc3Hist,True)
@@ -539,31 +535,19 @@ for j in range(2,12):
 c1= TCanvas("chi2graph","Chi2 vs N", 800,600)
 OutFile.Append(c1)
 
-chi2graphs["f1"].SetLineColor(kBlack)
-chi2graphs["f2"].SetLineColor(kRed)
-chi2graphs["f3"].SetLineColor(kGreen)
-chi2graphs["f4"].SetLineColor(kMagenta)
-chi2graphs["f1_exc3"].SetLineColor(kBlack)
-chi2graphs["f2_exc3"].SetLineColor(kRed)
-chi2graphs["f3_exc3"].SetLineColor(kGreen)
-chi2graphs["f4_exc3"].SetLineColor(kMagenta)
-chi2graphs["f1_exc3"].SetLineStyle(2)
-chi2graphs["f2_exc3"].SetLineStyle(2)
-chi2graphs["f3_exc3"].SetLineStyle(2)
-chi2graphs["f4_exc3"].SetLineStyle(2)
 #chi2graph_f5.SetLineColor(kYellow)
 #chi2graph_f5_exc3.SetLineColor(kSpring+10)
 
 leg = TLegend(0.7,0.7,0.9,0.9)
-chi2graphs["f1"].Draw()
+chi2graphs["f1_exc3"].Draw()
 for gname in chi2graphs:
    print "now drawing chi2 graphs %s"%gname
    chi2graphs[gname].Draw("SAME")
    leg.AddEntry(chi2graphs[gname],gname,"L")
-chi2graphs["f1"].SetTitle("Chi2/Ndof for different fit functions")
-chi2graphs["f1"].GetXaxis().SetTitle("Inclusive Multiplicity")
-chi2graphs["f1"].GetYaxis().SetTitle("Chi2/Ndof")
-chi2graphs["f1"].GetYaxis().SetRangeUser(0,50)
+chi2graphs["f1_exc3"].SetTitle("Chi2/Ndof for different fit functions")
+chi2graphs["f1_exc3"].GetXaxis().SetTitle("Inclusive Multiplicity")
+chi2graphs["f1_exc3"].GetYaxis().SetTitle("Chi2/Ndof")
+chi2graphs["f1_exc3"].GetYaxis().SetRangeUser(0,50)
 leg.SetFillStyle(1001);
 leg.SetFillColor(0);
 leg.Draw()
