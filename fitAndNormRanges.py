@@ -15,8 +15,10 @@ class FitAndNormRange:
         self.rangesFile = rangesFile
         fitRangesArray = []
         normRangesArray = []
+        plotRangesArray = []
         self.FitRanges = defaultdict()
         self.NormRanges = defaultdict()
+        self.PlotRanges = defaultdict()
         with open(self.rangesFile) as rangesTextFile:
             for line in rangesTextFile.readlines():
                 rangeArray = line.split(",")
@@ -26,10 +28,15 @@ class FitAndNormRange:
                     fitRangesArray.append([key, value])
                 elif rangeArray[0].strip() == "NormRange" :
                     normRangesArray.append([key, value])
+                elif rangeArray[0].strip() == "PlotRange" :
+                    plotRangesArray.append([key, value])
+
         for dist, fitrange in fitRangesArray:
             self.FitRanges[dist]=fitrange
         for dist, normrange in normRangesArray:
             self.NormRanges[dist]=normrange
+        for dist, plotrange in plotRangesArray:
+            self.PlotRanges[dist]=plotrange
 
     def showFitRanges(self):
         print "The fit ranges are:"
@@ -62,3 +69,7 @@ class FitAndNormRange:
 
     def getUpperNormBound(self, key):
         return self.NormRanges[key][1]
+    def getLowerPlotRange(self, key):
+        return self.PlotRanges[key][0]
+    def getUpperPlotRange(self, key):
+        return self.PlotRanges[key][1]

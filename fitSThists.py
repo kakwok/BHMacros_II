@@ -72,15 +72,18 @@ def getSymmetrizedFunction(bestfit, functions, xlow, xup, flowORfUp):
     i=0
     Integrate_bestfit = bestfit.Integral(xlow,xup)
     diffs             = []
+    fnames            = []
     abs_diffs         = []
     for f in functions:
         difference =  Integrate_bestfit  -  f.Integral(xlow,xup) 
         if abs(difference) ==0:
             bestfit_pos = i
+        fnames.append( f.GetName() )
         diffs.append( "%.5f"%difference )
         abs_diffs.append( abs(difference) )
         i+=1
    # print "The index of best fit is ", bestfit_pos 
+    print "functions list           : ",fnames
     print "Differences with best fit: ",diffs
    # print "Largest differece is ",max(abs_diffs)
     fsym_pos = abs_diffs.index(max(abs_diffs))  
@@ -148,14 +151,16 @@ def getNormalizedFunction(f, hist, xlowbin, xupbin, refHist, xlowedge, xupedge, 
     return fNormalized
 
 def customfit(f, Sthist, norm):
-#    print "Start fitting %s ...." % f.GetName()
-    for j in range(0, 20):
+    print "------------------------------------"
+    print "Start fitting %s ...." % f.GetName()
+    for j in range(0, 30):
         Sthist.Fit(f.GetName(), "Q0LR", "", fitNormRanges.getLowerFitBound(norm), fitNormRanges.getUpperFitBound(norm) )
-    Sthist.Fit(f.GetName(), "Q0LR", "", fitNormRanges.getLowerFitBound(norm), fitNormRanges.getUpperFitBound(norm) )
+    r = Sthist.Fit(f.GetName(), "0LR", "", fitNormRanges.getLowerFitBound(norm), fitNormRanges.getUpperFitBound(norm) )
     pars=[]
     for i in range(0,f.GetNpar()):
         pars.append(f.GetParameter(i))
-    print "Done fitting %s, %s has parameters :"%( f.GetName(), f.GetName()) , pars
+    print "Done fitting %s, result = %s, %s has parameters :"%( f.GetName(),int(r), f.GetName()) , pars
+    print "------------------------------------"
     Chi2List.append(f.GetChisquare())
 
 def ratioplot(fbest, sthist,xlow,xup):
@@ -186,7 +191,7 @@ def FitAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     upperPads[UpperPadName].SetBottomMargin(0.01)
     upperPads[UpperPadName].Draw()
     upperPads[UpperPadName].cd()
-    upperPads[UpperPadName].SetLogy()
+    upperPads[UpperPadName].SetLogy(1)
     stHist.SetTitle("")
     stHist.GetYaxis().SetTitle("Events/100 GeV")
     stHist.SetMarkerColor(kBlack)
@@ -203,7 +208,12 @@ def FitAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     lowerNormEdge = stHist.GetXaxis().GetBinLowEdge(lowerNormBin)
     upperNormEdge = stHist.GetXaxis().GetBinLowEdge(upperNormBin)
     binwidth      = stHist.GetXaxis().GetBinWidth(upperNormBin)
-    stHist.GetXaxis().SetRangeUser(lowerNormEdge, STup)
+    #stHist.GetXaxis().SetRangeUser(lowerNormEdge, STup)
+    if (ExcOrInc=="Exc"):
+        stHist.GetXaxis().SetRangeUser(fitNormRanges.getLowerPlotRange("exc%i"%j),fitNormRanges.getUpperPlotRange("exc%i"%j) )
+    if (ExcOrInc=="Inc"):
+        stHist.GetXaxis().SetRangeUser(fitNormRanges.getLowerPlotRange("inc%i"%j),fitNormRanges.getUpperPlotRange("inc%i"%j) )
+    
     stHist.GetXaxis().SetLabelSize(0)
     stHist.SetMinimum(1e-1)
 
@@ -230,9 +240,9 @@ def FitAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     #fLow     = getSymmetrizedFunction( fbest, functions, upperNormEdge, 14000)
     #fbest    = f2_norm_list["f2_norm"]
     fbest     = functions[ chi2_devlist.index( min(chi2_devlist) ) ]
-    print "fbest is chosen to be %s\n"%fbest.GetName()
-    fLow     = getSymmetrizedFunction( fbest, functions, 3000, 14000,"fLow")
-    fUp      = getSymmetrizedFunction( fbest, functions, 3000, 14000,"fUp" )
+    print "In N=%i, fbest is chosen to be %s\n"%(j,fbest.GetName())
+    fLow     = getSymmetrizedFunction( fbest, functions, 5000, 14000,"fLow")
+    fUp      = getSymmetrizedFunction( fbest, functions, 5000, 14000,"fUp" )
     fillGraph= getFillGraph( fLow, fUp )
     
     if DrawUncertainty:
@@ -400,8 +410,8 @@ for fname in fnames:
 	f2_list[fname+"_exc2"]     = TF1(fname+"_exc2",fnames[fname],1000,STup)
 	f3_list[fname+"_exc3"]     = TF1(fname+"_exc3",fnames[fname],1000,STup)
 	f4_list[fname+"_exc4"]     = TF1(fname+"_exc4",fnames[fname],1000,STup)
-AllFitList = [f3_list,f4_list]
-#AllFitList = [f2_list,f3_list]
+
+AllFitList=[f3_list,f4_list]
 
 for flist in AllFitList:
     for fname in flist:
@@ -457,7 +467,7 @@ f2_list["f3_exc2"].SetParameters(6e5, 0.4, -0.1, 4)
 f2_list["f4_exc2"].SetParameters(1.5e9, -12,  -0.7)
 
 #####    Fit N=3   #################
-f3_list["f1_exc3"].SetParameters(7e10, 0.5, 9)
+f3_list["f1_exc3"].SetParameters(2e13, 2, 14)
 f3_list["f2_exc3"].SetParameters(2.4e6, -3, 4.7, 0.4)
 f3_list["f3_exc3"].SetParameters(6e5, 0.4, -0.1, 4)
 f3_list["f4_exc3"].SetParameters(1.5e9, -12,  -0.7)
@@ -466,7 +476,7 @@ f3_list["f4_exc3"].SetParameters(1.5e9, -12,  -0.7)
 f4_list["f1_exc4"].SetParameters(8e6, 0.5, 9)
 f4_list["f2_exc4"].SetParameters(2.4e6, -3, 4.7, 0.4)
 f4_list["f3_exc4"].SetParameters(3e8, 0.3, -1, 4)
-f4_list["f4_exc4"].SetParameters(1.5e9, -12,  -0.7)
+f4_list["f4_exc4"].SetParameters(1.5e10, -10,  0.3)
 
 for flist in AllFitList:
     for fname in flist:
