@@ -48,7 +48,7 @@ fitNormRanges.showFitRanges()
 fitNormRanges.showNormRanges()
 rebin          = False 
 WriteDataCards = False 
-DrawUncertainty= False 
+DrawUncertainty= True 
 #f_outlier     = null
 
 
@@ -59,67 +59,117 @@ def getratio(f1,f2):
     f1overf2 = TF1(fname,formula,1000,STup)
     return f1overf2
 
+#returns: f1 - (f2-f1), f1 is the best fit
 def symmetrize(f1,f2):
     formula = "2*"+f1.GetExpFormula("p").Data() + "-" + f2.GetExpFormula("p").Data()
     fname = "2*"+f1.GetName()+"_minus_+"+f2.GetName()
     f1minusf2 = TF1(fname,formula,1000,STup)
     return f1minusf2
+def symmetrizeFormula(f1,f2):
+    formula = "2*"+f1.GetExpFormula("p").Data() + "-" + f2.GetExpFormula("p").Data()
+    return formula
+
 
 # Return the symmetrized funtion w.r.t. bestfit among functions in the range xlow, xup
-def getSymmetrizedFunction(bestfit, functions, xlow, xup, flowORfUp):
+def getSymmetrizedFunction(bestfit, functions, xlow, xup):
     bestfit_pos = 0
-    fsym_pos = 0
+    fsym_pos    = -1
+    #get the position of the best fit
     i=0
-    Integrate_bestfit = bestfit.Integral(xlow,xup)
-    diffs             = []
-    fnames            = []
-    abs_diffs         = []
+    fnames= []
     for f in functions:
-        difference =  Integrate_bestfit  -  f.Integral(xlow,xup) 
+        difference =  bestfit.Eval(xup)  -  f.Eval(xup) 
         if abs(difference) ==0:
             bestfit_pos = i
         fnames.append( f.GetName() )
-        diffs.append( "%.5f"%difference )
-        abs_diffs.append( abs(difference) )
         i+=1
-   # print "The index of best fit is ", bestfit_pos 
-    print "functions list           : ",fnames
-    print "Differences with best fit: ",diffs
-   # print "Largest differece is ",max(abs_diffs)
-    fsym_pos = abs_diffs.index(max(abs_diffs))  
-   # f_outlier= functions[fsym_pos]
-   # print "The index of fsym is ", fsym_pos
-    print " %s is symmetrized with respect to %s" % ( functions[bestfit_pos].GetName(), functions[fsym_pos].GetName() )
-    if(flowORfUp=="fLow"):
-	    return symmetrize( functions[bestfit_pos], functions[fsym_pos])
-    elif(flowORfUp=="fUp"):
-	    return functions[fsym_pos]
+    SymRange_xlow     = xlow    #range to symmetrize function
+    SymRange_xup      = xup     #range to symmetrize function
+    #[xlow,xlow+100, ... ,xup]
+    fLowFormula = ""
+    fUpFormula  = ""
+
+    diffs             = []
+    SignChanged       = False
+    for x in np.arange(xlow,xup+100,100):
+        last_diffs        = diffs
+        diffs             = []
+        abs_diffs         = []
+        for f in functions:
+            difference =  bestfit.Eval(x)  -  f.Eval(x) 
+            diffs.append( difference )
+            abs_diffs.append( abs(difference) )
+        #print "At x= ",x
+        #print "fnames = ",fnames
+        #print "diffs  = ",diffs
+        iMaxDiff = abs_diffs.index(max(abs_diffs)) 
+        if (len(last_diffs)>0):
+            if( diffs[iMaxDiff] * last_diffs[fsym_pos] < 0):
+                SignChanged = True
+            else:
+                SignChanged = False
+
+        SymRange_xup = x
+        # Find do we need to change symmetrize function
+        if((not fsym_pos == iMaxDiff) or (SignChanged)):
+            if not(fsym_pos==-1):
+                rangeString = "(x>="+str(SymRange_xlow)+" && x<"+str(SymRange_xup)+")*("
+                print "Symmetrize function changed from %s to %s at %s" % (fnames[fsym_pos],fnames[iMaxDiff],x)
+                if(not fLowFormula==""): fLowFormula += "+"
+                if(not fUpFormula=="" ): fUpFormula  += "+"
+               
+                # make sure fLow picks up the smaller function 
+                if( ( bestfit.Eval(SymRange_xlow) - functions[fsym_pos].Eval(SymRange_xlow))<0 ):
+                    fLowFormula  += rangeString + symmetrizeFormula(bestfit, functions[fsym_pos]) +")"
+                    fUpFormula   += rangeString + functions[fsym_pos].GetExpFormula("p").Data() +")"
+                else:
+                    fLowFormula  += rangeString +  functions[fsym_pos].GetExpFormula("p").Data()  +")"
+                    fUpFormula   += rangeString + symmetrizeFormula(bestfit, functions[fsym_pos]) +")"
+            #Mark the first pass
+            fsym_pos      = iMaxDiff 
+            SymRange_xlow = x
+    #Fill the formula up to xup
+    rangeString = "(x>="+str(SymRange_xlow)+" && x<"+str(SymRange_xup)+")*("
+    if(not fLowFormula==""): fLowFormula += "+"
+    if(not fUpFormula=="" ): fUpFormula  += "+"
+    if(( bestfit.Eval(SymRange_xlow) - functions[fsym_pos].Eval(SymRange_xlow))<0):
+        fLowFormula  += rangeString + symmetrizeFormula(bestfit, functions[fsym_pos]) +")"
+        fUpFormula   += rangeString + functions[fsym_pos].GetExpFormula("p").Data() +")"
     else:
-	    return "ERROR!"
+        fLowFormula  += rangeString +  functions[fsym_pos].GetExpFormula("p").Data()  +")"
+        fUpFormula   += rangeString + symmetrizeFormula(bestfit, functions[fsym_pos]) +")"
+
+    #print "Final fLow = ",fLowFormula
+    #print "Final fUp  = ",fUpFormula
+    
+    flow = TF1("fLow_symmetrized",fLowFormula,xlow,xup)
+    fup  = TF1("fUp_symmetrized",fUpFormula,xlow,xup)
+    return (flow,fup)
 
 # Return the TGraph bounded by fLow and fUp for drawing
 def getFillGraph(fLow, fUp):
     g = TGraph()
     #for x in np.arange(fLow.GetXmin(),fLow.GetXmax(),130):
     for x in np.arange(fLow.GetXmin(),fLow.GetXmax(),100):
-        g.SetPoint(g.GetN(), x, fLow.Eval(x) )
-	#print x,fLow.Eval(x),fUp.Eval(x)
+        g.SetPoint(g.GetN(), x, min(fLow.Eval(x),fUp.Eval(x)) )
     for x in np.arange(fUp.GetXmax(),fLow.GetXmin(),-100):
-        g.SetPoint(g.GetN(), x, fUp.Eval(x) )
+        g.SetPoint(g.GetN(), x, max(fUp.Eval(x),fLow.Eval(x)) )
     return g
  
 # Return the TGraph bounded by fLow, fUp and normalized by fbest for drawing
 def getRatioFillGraph(fLow, fUp, fbest):
     gUp = TGraph()
     gDown=TGraph()
+    gbest=TGraph()
     gFill=TGraph()
     for x in np.arange(fLow.GetXmin(),fLow.GetXmax(),50):
         gFill.SetPoint(gFill.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
         gDown.SetPoint(gDown.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
+        gbest.SetPoint(gbest.GetN(), x, 0)
     for x in np.arange(fUp.GetXmax(),fUp.GetXmin(),-50):
         gFill.SetPoint(gFill.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
         gUp.SetPoint(  gUp.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
-    gDict={"gUp":gUp,"gDown":gDown,"gFill":gFill}
+    gDict={"gUp":gUp,"gDown":gDown,"gFill":gFill,"gbest":gbest}
     return gDict
 
 # Return the mean value of bin content
@@ -160,7 +210,6 @@ def customfit(f, Sthist, norm):
     for i in range(0,f.GetNpar()):
         pars.append(f.GetParameter(i))
     print "Done fitting %s, result = %s, %s has parameters :"%( f.GetName(),int(r), f.GetName()) , pars
-    print "------------------------------------"
     Chi2List.append(f.GetChisquare())
 
 def ratioplot(fbest, sthist,xlow,xup):
@@ -240,20 +289,25 @@ def FitAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     #fLow     = getSymmetrizedFunction( fbest, functions, upperNormEdge, 14000)
     #fbest    = f2_norm_list["f2_norm"]
     fbest     = functions[ chi2_devlist.index( min(chi2_devlist) ) ]
+    print "-----------------------------------------"
     print "In N=%i, fbest is chosen to be %s\n"%(j,fbest.GetName())
-    fLow     = getSymmetrizedFunction( fbest, functions, 5000, 14000,"fLow")
-    fUp      = getSymmetrizedFunction( fbest, functions, 5000, 14000,"fUp" )
+    fLow,fUp  = getSymmetrizedFunction( fbest, functions, 2500, 14000)
     fillGraph= getFillGraph( fLow, fUp )
     
     if DrawUncertainty:
         fillGraph.SetFillColorAlpha(kGray,0.35)
+        fillGraph.SetLineColor(kBlue)
         fillGraph.Draw("sameF")
     	stHist.Draw("sameEP")
         fUp.SetLineColor(kBlue)
         fUp.SetLineStyle(1)
+        fUp.SetLineWidth(1)
+        fLow.SetLineWidth(1)
         fUp.Draw("SAME")
         fbest.SetLineColor(kBlue)
         fbest.SetLineStyle(1)
+        fbest.SetLineWidth(2)
+        fbest.Draw("SAME")
     else:
         # Draw a legend for all functions
         leg2 = TLegend(0.6,0.5, 0.85, 0.7,"", "brNDC")
@@ -352,6 +406,8 @@ def FitAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     	RatioFillGraphs["gUp"].Draw("sameC")
     	RatioFillGraphs["gDown"].SetLineColor(kBlue)
     	RatioFillGraphs["gDown"].Draw("sameC")
+    	RatioFillGraphs["gbest"].SetLineColor(kBlack)
+    	RatioFillGraphs["gbest"].Draw("sameC")
     	stExcRatio.Draw("sameEP")
     if(WriteCanvas):
         STcomparisons[canvasName].Write()
@@ -412,6 +468,7 @@ for fname in fnames:
 	f4_list[fname+"_exc4"]     = TF1(fname+"_exc4",fnames[fname],1000,STup)
 
 AllFitList=[f3_list,f4_list]
+#AllFitList=[f3_list]
 
 for flist in AllFitList:
     for fname in flist:
@@ -549,15 +606,15 @@ OutFile.Append(c1)
 #chi2graph_f5_exc3.SetLineColor(kSpring+10)
 
 leg = TLegend(0.7,0.7,0.9,0.9)
-chi2graphs["f1_exc3"].Draw()
+chi2graphs["f1_exc4"].Draw()
 for gname in chi2graphs:
    print "now drawing chi2 graphs %s"%gname
    chi2graphs[gname].Draw("SAME")
    leg.AddEntry(chi2graphs[gname],gname,"L")
-chi2graphs["f1_exc3"].SetTitle("Chi2/Ndof for different fit functions")
-chi2graphs["f1_exc3"].GetXaxis().SetTitle("Inclusive Multiplicity")
-chi2graphs["f1_exc3"].GetYaxis().SetTitle("Chi2/Ndof")
-chi2graphs["f1_exc3"].GetYaxis().SetRangeUser(0,50)
+chi2graphs["f1_exc4"].SetTitle("Chi2/Ndof for different fit functions")
+chi2graphs["f1_exc4"].GetXaxis().SetTitle("Inclusive Multiplicity")
+chi2graphs["f1_exc4"].GetYaxis().SetTitle("Chi2/Ndof")
+chi2graphs["f1_exc4"].GetYaxis().SetRangeUser(0,50)
 leg.SetFillStyle(1001);
 leg.SetFillColor(0);
 leg.Draw()
