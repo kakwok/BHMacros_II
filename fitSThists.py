@@ -48,7 +48,7 @@ fitNormRanges.showFitRanges()
 fitNormRanges.showNormRanges()
 rebin          = False 
 WriteDataCards = False 
-DrawUncertainty= True 
+DrawUncertainty= False 
 #f_outlier     = null
 
 
@@ -455,13 +455,13 @@ def FitAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
 
 f1_string = "[0]/([1]+0.001*x)**[2]"
 f2_string = "([0]*(1+x*0.001)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))"
-f3_string = "[0]/([1] + [2]*x*0.001 + (0.001*x)**2)**[3]"
+#f3_string = "[0]/([1] + [2]*x*0.001 + (0.001*x)**2)**[3]"
 f4_string = "([0]*(1+0.001*x)^[1])/((0.001*x)**([2]*TMath::Log(x*0.001)))"
 f5_string = "([0]*(1-0.001*x)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))"
 
 
 # Define dictionaries of functions for fitting different histograms
-fnames = {"f1":f1_string,"f2":f2_string,"f3":f3_string,"f4":f4_string}
+fnames = {"f1":f1_string,"f2":f2_string,"f3":f3_string,"f4":f4_string,"f5":f5_string}
 for fname in fnames:
 	f2_list[fname+"_exc2"]     = TF1(fname+"_exc2",fnames[fname],1000,STup)
 	f3_list[fname+"_exc3"]     = TF1(fname+"_exc3",fnames[fname],1000,STup)
@@ -528,12 +528,14 @@ f3_list["f1_exc3"].SetParameters(2e13, 2, 14)
 f3_list["f2_exc3"].SetParameters(2.4e6, -3, 4.7, 0.4)
 f3_list["f3_exc3"].SetParameters(6e5, 0.4, -0.1, 4)
 f3_list["f4_exc3"].SetParameters(1.5e9, -12,  -0.7)
+f3_list["f5_exc3"].SetParameters(1.5e9, 0,6,  0.7)
 
 #####    Fit N=4   #################
 f4_list["f1_exc4"].SetParameters(8e6, 0.5, 9)
 f4_list["f2_exc4"].SetParameters(2.4e6, -3, 4.7, 0.4)
 f4_list["f3_exc4"].SetParameters(3e8, 0.3, -1, 4)
 f4_list["f4_exc4"].SetParameters(1.5e10, -10,  0.3)
+f4_list["f5_exc4"].SetParameters(1.5e10, 0,6,  0.7)
 
 for flist in AllFitList:
     for fname in flist:
