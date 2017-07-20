@@ -203,6 +203,8 @@ def getNormalizedFunction(f, hist, xlowbin, xupbin, refHist, xlowedge, xupedge, 
 def customfit(f, Sthist, norm):
     print "------------------------------------"
     print "Start fitting %s ...." % f.GetName()
+    # Guide the fit with the amplitude of the refhist in the fit region
+    f.SetParameter(0, Sthist.Integral( Sthist.FindBin(fitNormRanges.getLowerFitBound(norm)), Sthist.FindBin(fitNormRanges.getUpperFitBound(norm))))
     for j in range(0, 30):
         Sthist.Fit(f.GetName(), "Q0LR", "", fitNormRanges.getLowerFitBound(norm), fitNormRanges.getUpperFitBound(norm) )
     r = Sthist.Fit(f.GetName(), "0LR", "", fitNormRanges.getLowerFitBound(norm), fitNormRanges.getUpperFitBound(norm) )
@@ -453,15 +455,15 @@ def FitAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
 #f4_exc3 = TF1("f4_exc3", "([0]*(1+x)^[1])/(x**([2]*TMath::Log(x)))", 1000, STup)
 #f5_exc3 = TF1("f5_exc3", "([0]*(1-x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, STup)
 
-f1_string = "[0]/([1]+0.001*x)**[2]"
-f2_string = "([0]*(1+x*0.001)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))"
 #f3_string = "[0]/([1] + [2]*x*0.001 + (0.001*x)**2)**[3]"
-f4_string = "([0]*(1+0.001*x)^[1])/((0.001*x)**([2]*TMath::Log(x*0.001)))"
-f5_string = "([0]*(1-0.001*x)^[1])/((0.001*x)**([2]+[3]*TMath::Log(x*0.001)))"
+f1_string = "[0]/([1]+0.001*x)**[2]"
+f2_string = "([0]*(1+x/13000)^[1])/((x/13000)**([2]+[3]*TMath::Log(x/13000)))"
+f4_string = "([0]*(1+x/13000)^[1])/((x/13000)**([2]*TMath::Log(x/13000)))"
+f5_string = "([0]*(1-x/13000)^[1])/((x/13000)**([2]+[3]*TMath::Log(x/13000)))"
 
 
 # Define dictionaries of functions for fitting different histograms
-fnames = {"f1":f1_string,"f2":f2_string,"f3":f3_string,"f4":f4_string,"f5":f5_string}
+fnames = {"f1":f1_string,"f2":f2_string,"f4":f4_string,"f5":f5_string}
 for fname in fnames:
 	f2_list[fname+"_exc2"]     = TF1(fname+"_exc2",fnames[fname],1000,STup)
 	f3_list[fname+"_exc3"]     = TF1(fname+"_exc3",fnames[fname],1000,STup)
@@ -485,6 +487,11 @@ for flist in AllFitList:
         if("f4" in fname):
             flist[fname].SetLineColor(kMagenta)
             chi2graphs[fname].SetLineColor(kMagenta)
+        if("f5" in fname):
+            flist[fname].SetLineColor(kOrange)
+            chi2graphs[fname].SetLineColor(kOrange)
+
+
 
 #fLow=TF1("fLow", "[0]*(2*[1]/([2]*x)**[3]-[4]/([5] + [6]*x + x**2)**[7])", 1000, STup)
 #Funcs ={0:f1,1:f2,2:f3,3:f1_exc3,4:f2_exc3,5:f3_exc3,6:fLow}
@@ -518,24 +525,24 @@ stExc4Hist =PlotsDir.Get(histname04)
 #stExc2or3Hist.Add(stExc3Hist)
 
 #####    Fit N=2   ###############
-f2_list["f1_exc2"].SetParameters(8e6, 0.5, 9)
-f2_list["f2_exc2"].SetParameters(2.4e6, -3, 4.7, 0.4)
-f2_list["f3_exc2"].SetParameters(6e5, 0.4, -0.1, 4)
-f2_list["f4_exc2"].SetParameters(1.5e9, -12,  -0.7)
+if("f1_exc2" in f2_list): f2_list["f1_exc2"].SetParameters(8e6, 0.5, 9)
+if("f2_exc2" in f2_list): f2_list["f2_exc2"].SetParameters(2.4e6, -3, 4.7, 0.4)
+#if("f3_exc2" in f2_list): #f2_list["f3_exc2"].SetParameters(6e5, 0.4, -0.1, 4)
+if("f4_exc2" in f2_list): f2_list["f4_exc2"].SetParameters(1.5e9, -31,  -0.8)
 
 #####    Fit N=3   #################
-f3_list["f1_exc3"].SetParameters(2e13, 2, 14)
-f3_list["f2_exc3"].SetParameters(2.4e6, -3, 4.7, 0.4)
-f3_list["f3_exc3"].SetParameters(6e5, 0.4, -0.1, 4)
-f3_list["f4_exc3"].SetParameters(1.5e9, -12,  -0.7)
-f3_list["f5_exc3"].SetParameters(1.5e9, 0,6,  0.7)
+if("f1_exc3" in f3_list): f3_list["f1_exc3"].SetParameters(2e13, 2, 14)
+if("f2_exc3" in f3_list): f3_list["f2_exc3"].SetParameters(2.4e6, -27, 1.9, -0.48)
+#if("f3_exc3" in f3_list): #f3_list["f3_exc3"].SetParameters(6e5, 0.4, -0.1, 4)
+if("f4_exc3" in f3_list): f3_list["f4_exc3"].SetParameters(1.5e9, -31,  -0.8)
+if("f5_exc3" in f3_list): f3_list["f5_exc3"].SetParameters(37, 9 ,3,  -0.9)
 
 #####    Fit N=4   #################
-f4_list["f1_exc4"].SetParameters(8e6, 0.5, 9)
-f4_list["f2_exc4"].SetParameters(2.4e6, -3, 4.7, 0.4)
-f4_list["f3_exc4"].SetParameters(3e8, 0.3, -1, 4)
-f4_list["f4_exc4"].SetParameters(1.5e10, -10,  0.3)
-f4_list["f5_exc4"].SetParameters(1.5e10, 0,6,  0.7)
+if("f1_exc4" in f4_list): f4_list["f1_exc4"].SetParameters(8e6, 0.5, 9)
+if("f2_exc4" in f4_list): f4_list["f2_exc4"].SetParameters(2.4e6, -27, 1.9, -0.48)
+#if("f3_exc4" in f4_list): #f4_list["f3_exc4"].SetParameters(3e8, 0.3, -1, 4)
+if("f4_exc4" in f4_list): f4_list["f4_exc4"].SetParameters(1.5e10, -31,  -0.8)
+if("f5_exc4" in f4_list): f4_list["f5_exc4"].SetParameters(37, 9,3,  -0.9)
 
 for flist in AllFitList:
     for fname in flist:
