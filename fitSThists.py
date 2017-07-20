@@ -225,7 +225,7 @@ def ratioplot(fbest, sthist,xlow,xup):
 ## ExcOrInc   = "Exc" or "Inc"
 ## stRefHist  = Reference histogram (N=2/N=3/N<=3) for drawing ratio plot 
 ###################################
-def FitAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
+def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     if rebin :
         stHist.Rebin(10)
     # For exclusive STs
@@ -597,16 +597,16 @@ for j in range(2,12):
     stExc3Hist=PlotsDir.Get(Exc03HistName)
     
     if j==2:
-        FitAndDrawST(stExcHist,j,"Exc",stExc3Hist,True)
+        NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,True)
     if j==3:
-        FitAndDrawST(stExcHist,j,"Exc",stExc2Hist,True)
+        NormAndDrawST(stExcHist,j,"Exc",stExc2Hist,True)
     if j==4:
-        FitAndDrawST(stExcHist,j,"Exc",stExc3Hist,True)
+        NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,True)
         
-    FitAndDrawST(stIncHist,j,"Inc",stExc2Hist,True)
-    FitAndDrawST(stIncHist,j,"Inc",stExc3Hist,True)
-    #FitAndDrawST(stExcHist,j,"Exc",stExc2or3Hist,False)
-    #FitAndDrawST(stIncHist,j,"Inc",stExc2or3Hist,False)
+    NormAndDrawST(stIncHist,j,"Inc",stExc2Hist,True)
+    NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True)
+    #NormAndDrawST(stExcHist,j,"Exc",stExc2or3Hist,False)
+    #NormAndDrawST(stIncHist,j,"Inc",stExc2or3Hist,False)
 
 c1= TCanvas("chi2graph","Chi2 vs N", 800,600)
 OutFile.Append(c1)
