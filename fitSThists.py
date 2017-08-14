@@ -6,6 +6,7 @@ from fitAndNormRanges import *
 from sys import argv
 import CMS_lumi
 import numpy as np
+from tabulate import tabulate
 
 ##################################################################
 CMS_lumi.lumi_13TeV = "2.3 fb^{-1}"
@@ -42,15 +43,20 @@ PlotsFile = TFile(argv[1])
 PlotsDir = PlotsFile.Get("ST")
 #PlotsDir = PlotsFile.Get("ST_tight")
 OutFile = TFile("output/%s"%argv[2], "RECREATE")
-chi2graphs   = {}
+chi2graphs_norm   = {}
+chi2graphs_fit    = {}
 fitNormRanges = FitAndNormRange(argv[3])
 fitNormRanges.showFitRanges()
 fitNormRanges.showNormRanges()
-rebin          = False 
+rebin          = False   # Rebin from 50GeV to 100GeV
 WriteDataCards = False 
 DrawUncertainty= False 
 #f_outlier     = null
 
+
+chi2Table          = []
+chi2Table_head     = ["Name","Exc3/Exc4","chi2","ndof","chi2/ndof"]
+chi2Table.append(chi2Table_head)
 
 STup = 9000
 def getratio(f1,f2):
@@ -211,8 +217,21 @@ def customfit(f, Sthist, norm):
     pars=[]
     for i in range(0,f.GetNpar()):
         pars.append(f.GetParameter(i))
-    print "Done fitting %s, result = %s, %s has parameters :"%( f.GetName(),int(r), f.GetName()) , pars
     Chi2List.append(f.GetChisquare())
+    chi2pNDF = f.GetChisquare()/ f.GetNDF()
+    if("exc3" in f.GetName()):
+        fname = f.GetName().replace("_exc3","")
+        chi2graphs_fit[fname].SetPoint( chi2graphs_fit[fname].GetN(), 3, chi2pNDF)
+        chi2Table_row = [fname,"3", "%.3f"%(f.GetChisquare()), "%.3f"%f.GetNDF(), "%.3f"%chi2pNDF]
+        chi2Table.append(chi2Table_row)
+        
+    if("exc4" in f.GetName()):
+        fname = f.GetName().replace("_exc4","")
+        chi2graphs_fit[fname].SetPoint( chi2graphs_fit[fname].GetN(), 4 ,chi2pNDF)
+        chi2Table_row = [fname,"4", "%.3f"%(f.GetChisquare()), "%.3f"%f.GetNDF(), "%.3f"%chi2pNDF]
+        chi2Table.append(chi2Table_row)
+    print "Done fitting %s, result = %s, %s has parameters :"%( f.GetName(),int(r), f.GetName()) , pars
+    print "Done fitting %s, %s has chi2perNDF = %.5f :"%(f.GetName(), f.GetName(), chi2pNDF)
 
 def ratioplot(fbest, sthist,xlow,xup):
     h = sthist.Clone("h_ratio")
@@ -226,8 +245,6 @@ def ratioplot(fbest, sthist,xlow,xup):
 ## stRefHist  = Reference histogram (N=2/N=3/N<=3) for drawing ratio plot 
 ###################################
 def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
-    if rebin :
-        stHist.Rebin(10)
     # For exclusive STs
     if ("Exc02" in stRefHist.GetName()):
 	    canvasName = "st%s%02iCanvas_Exc02"%(ExcOrInc,j)
@@ -244,10 +261,12 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     upperPads[UpperPadName].cd()
     upperPads[UpperPadName].SetLogy(1)
     stHist.SetTitle("")
-    stHist.GetYaxis().SetTitle("Events/100 GeV")
+    #stHist.GetYaxis().SetTitle("Events/100 GeV")
+    stHist.GetYaxis().SetTitle("Events/50 GeV")
     stHist.SetMarkerColor(kBlack)
     stHist.SetMarkerStyle(8)
     stHist.SetMarkerSize(0.7)
+    #stHist.Sumw2(False)
     stHist.Draw("EP")
     if (ExcOrInc=="Exc"):
         lowerNormBin  = stHist.GetXaxis().FindBin(float(fitNormRanges.getLowerNormBound("exc%i"%j)))
@@ -281,9 +300,11 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
             chi2 = stHist.Chisquare( fnorm ,"R")/ fnorm.GetNDF()
     	    chi2_list.append(chi2)
     	    chi2_devlist.append(abs(chi2-1))
+            #if "VVdijet1_exc3" in fname:
+            #    fbest = fnorm
     	    functions.append( fnorm )
     	    if(ExcOrInc=="Inc"):
-                chi2graphs[fname].SetPoint( chi2graphs[fname].GetN(), j , chi2)
+                chi2graphs_norm[fname].SetPoint( chi2graphs_norm[fname].GetN(), j , chi2)
     	    if not DrawUncertainty:
                 fnorm.Draw("SAME")
     
@@ -293,7 +314,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     fbest     = functions[ chi2_devlist.index( min(chi2_devlist) ) ]
     print "-----------------------------------------"
     print "In N=%i, fbest is chosen to be %s\n"%(j,fbest.GetName())
-    fLow,fUp  = getSymmetrizedFunction( fbest, functions, 2500, 14000)
+    fLow,fUp  = getSymmetrizedFunction( fbest, functions, 2500, 7000)
     fillGraph= getFillGraph( fLow, fUp )
     
     if DrawUncertainty:
@@ -312,7 +333,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
         fbest.Draw("SAME")
     else:
         # Draw a legend for all functions
-        leg2 = TLegend(0.6,0.5, 0.85, 0.7,"", "brNDC")
+        leg2 = TLegend(0.5,0.5, 0.85, 0.7,"", "brNDC")
         leg2.SetNColumns(2)
         leg2.SetBorderSize(0)
         for fnorm in functions:
@@ -325,10 +346,6 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
 	fbest.Draw("SAME")
     fLow.SetLineColor(kBlue)
     fLow.Draw("SAME")
-
-    chi2_list    = []
-    chi2_devlist = []
-    functions    = []
 
     legend = TLegend(0.6, 0.7, 0.8, 0.85,"", "brNDC")
     legend.SetTextSize(0.04);
@@ -347,7 +364,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
         else:
             legend.AddEntry(stHist,"Data: multiplicity >=%i"%j,"ep");
     if DrawUncertainty:
-	legend.AddEntry(fillGraph,"Background from fit","fl");
+	    legend.AddEntry(fillGraph,"Background from fit","fl");
     legend.Draw()
 
     #CMS_lumi.CMS_lumi(STcomparisons[canvasName], iPeriod, iPos)
@@ -378,14 +395,13 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     stExcRatio.GetYaxis().SetRangeUser(0,getMeanBinContent(stExcRatio)*2)
     stExcRatio.Write()
 
-    # Reuse StExcRatio to draw lower panel of data
-    if DrawUncertainty:
-        stExcRatio = stHist.Clone("st%s%02i_fitPanel"%(ExcOrInc,j))
-        stExcRatio.Sumw2()
-        stExcRatio.GetYaxis().SetTitle("(Data-Fit)/Fit")
-        stExcRatio.Add(fbest,-1)    # Subtract best fit
-        stExcRatio.Divide(fbest,1)  # Divide by best fit    
-        stExcRatio.GetYaxis().SetRangeUser(-1,1)
+    #Draw pulls in the lower panel
+    stExcRatio = stHist.Clone("st%s%02i_fitPanel"%(ExcOrInc,j))
+    stExcRatio.Sumw2()
+    stExcRatio.GetYaxis().SetTitle("(Data-Fit)/Fit")
+    stExcRatio.Add(fbest,-1)    # Subtract best fit
+    stExcRatio.Divide(fbest,1)  # Divide by best fit    
+    stExcRatio.GetYaxis().SetRangeUser(-0.2,0.2)
     stExcRatio.GetXaxis().SetLabelSize(0.1)
     stExcRatio.GetXaxis().SetTitleSize(0.1)
     stExcRatio.GetXaxis().SetTitle("S_{T} (GeV)")
@@ -411,6 +427,20 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     	RatioFillGraphs["gbest"].SetLineColor(kBlack)
     	RatioFillGraphs["gbest"].Draw("sameC")
     	stExcRatio.Draw("sameEP")
+    else:
+        fpulls = []
+        for fnorm in functions:
+            fdiff_formula = "("+fnorm.GetExpFormula("p").Data() + "-" + fbest.GetExpFormula("p").Data() +")/("+fbest.GetExpFormula("p").Data()+")"
+            f_diff = TF1(fnorm.GetName()+"_pull_"+fbest.GetName(),fdiff_formula,1000,STup)
+            #print "fnorm.Eval(4000)=%s, fbest.Eval(4000)=%s, fdiff.Eval(4000)=%s"%(fnorm.Eval(4000),fbest.Eval(4000),f_diff.Eval(4000))
+            #print "f_diff name=%s fdiff.Eval(4000)=%s"%(f_diff.GetName(),f_diff.Eval(4000))
+            f_diff.SetLineColor( fnorm.GetLineColor() )
+            f_diff.SetLineStyle( fnorm.GetLineStyle() )
+            f_diff.SetLineWidth( fnorm.GetLineWidth() )
+            fpulls.append(f_diff)
+        for f in fpulls:
+            f.Draw("same")
+        
     if(WriteCanvas):
         STcomparisons[canvasName].Write()
 
@@ -455,42 +485,88 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
 #f4_exc3 = TF1("f4_exc3", "([0]*(1+x)^[1])/(x**([2]*TMath::Log(x)))", 1000, STup)
 #f5_exc3 = TF1("f5_exc3", "([0]*(1-x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, STup)
 
-#f3_string = "[0]/([1] + [2]*x*0.001 + (0.001*x)**2)**[3]"
-f1_string = "[0]/([1]+0.001*x)**[2]"
-f2_string = "([0]*(1+x/13000)^[1])/((x/13000)**([2]+[3]*TMath::Log(x/13000)))"
-f4_string = "([0]*(1+x/13000)^[1])/((x/13000)**([2]*TMath::Log(x/13000)))"
-f5_string = "([0]*(1-x/13000)^[1])/((x/13000)**([2]+[3]*TMath::Log(x/13000)))"
+f1_string       ="[0]/([1]+x/13000)**[2]"
+f2_string       ="([0]*(1+x/13000)^[1])/((x/13000)**([2]+[3]*TMath::Log(x/13000)))"
+f3_string       ="[0]/([1] + [2]*x*0.001 + (0.001*x)**2)**[3]"
+f4_string       ="([0]*(1+x/13000)^[1])/((x/13000)**([2]*TMath::Log(x/13000)))"
+VVdijet1_string ="([0]*(1-x/13000)^[1])/((x/13000)**([2]))" 
+VVdijet2_string ="([0]*(1-x/13000)^[1])/((x/13000)**([2]+[3]*TMath::Log(x/13000)))" 
+dijet2_string   ="[0]*(x)^([1]+[2]*TMath::Log(x/13000))" 
+#dijet3_string   ="[0]*(TMath::Exp(1))^([1]+[2]*TMath::Log(x/13000)+[3]*(TMath::Log(x/13000))^2)" 
+dijet3_string   ="[0]*(x)^([1]+[2]*TMath::Log(x/13000)+[3]*(TMath::Log(x/13000))^2)" 
+ATLAS1_string   ="([0]*(1-(x/13000)^(1/3))^[1])/((x/13000)^[2])"
+ATLAS2_string   ="([0]*(1-(x/13000)^(1/3))^[1])/((x/13000)^([2]+[3]*(TMath::Log(x/13000))^2))"
+exPow_string    ="[0]*(x/13000)^[1]*TMath::Exp(1)^([2]*(x/13000))"
 
 
 # Define dictionaries of functions for fitting different histograms
-fnames = {"f1":f1_string,"f2":f2_string,"f4":f4_string,"f5":f5_string}
+#fnames = {"f1":f1_string,"f2":f2_string,"f3":f3_string,"f4":f4_string,"f5":f5_string}
+#fnames = {"f1":f1_string,"f2":f2_string,"f4":f4_string}
+#fnames.update({"VVdijet2":VVdijet2_string,"VVdijet1":VVdijet1_string})
+#fnames.update({"ATLAS1":ATLAS1_string,"ATLAS2":ATLAS2_string})
+#fnames.update({"dijet2":dijet2_string,"dijet3":dijet3_string})
+#fnames.update({"exPow":exPow_string})
+
+fnames = {"VVdijet2":VVdijet2_string,"VVdijet1":VVdijet1_string}
+fnames.update({"ATLAS1":ATLAS1_string,"ATLAS2":ATLAS2_string})
+#fnames = {"dijet2":dijet2_string,"dijet3":dijet3_string}
+#fnames.update({"exPow":exPow_string})
 for fname in fnames:
-	f2_list[fname+"_exc2"]     = TF1(fname+"_exc2",fnames[fname],1000,STup)
-	f3_list[fname+"_exc3"]     = TF1(fname+"_exc3",fnames[fname],1000,STup)
-	f4_list[fname+"_exc4"]     = TF1(fname+"_exc4",fnames[fname],1000,STup)
+    f2_list[fname+"_exc2"]     = TF1(fname+"_exc2",fnames[fname],1000,STup)
+    f3_list[fname+"_exc3"]     = TF1(fname+"_exc3",fnames[fname],1000,STup)
+    f4_list[fname+"_exc4"]     = TF1(fname+"_exc4",fnames[fname],1000,STup)
+    chi2graphs_fit[fname] =TGraph()
 
 AllFitList=[f3_list,f4_list]
 #AllFitList=[f3_list]
 
 for flist in AllFitList:
     for fname in flist:
-        chi2graphs[fname]=TGraph()
+        chi2graphs_norm[fname]=TGraph()
         if("f1" in fname):
             flist[fname].SetLineColor(kBlack)
-            chi2graphs[fname].SetLineColor(kBlack)
+            chi2graphs_norm[fname].SetLineColor(kBlack)
+            chi2graphs_fit["f1"].SetLineColor(kBlack)
         if("f2" in fname):
             flist[fname].SetLineColor(kRed)
-            chi2graphs[fname].SetLineColor(kRed)
+            chi2graphs_norm[fname].SetLineColor(kRed)
+            chi2graphs_fit["f2"].SetLineColor(kRed)
         if("f3" in fname):
             flist[fname].SetLineColor(kGreen)
-            chi2graphs[fname].SetLineColor(kGreen)
+            chi2graphs_norm[fname].SetLineColor(kGreen)
+            chi2graphs_fit["f3"].SetLineColor(kGreen)
         if("f4" in fname):
             flist[fname].SetLineColor(kMagenta)
-            chi2graphs[fname].SetLineColor(kMagenta)
-        if("f5" in fname):
+            chi2graphs_norm[fname].SetLineColor(kMagenta)
+            chi2graphs_fit["f4"].SetLineColor(kMagenta)
+        if("VVdijet2" in fname):
             flist[fname].SetLineColor(kOrange)
-            chi2graphs[fname].SetLineColor(kOrange)
-
+            chi2graphs_norm[fname].SetLineColor(kOrange)
+            chi2graphs_fit["VVdijet2"].SetLineColor(kOrange)
+        if("VVdijet1" in fname):
+            flist[fname].SetLineColor(kOrange+7)
+            chi2graphs_norm[fname].SetLineColor(kOrange+7)
+            chi2graphs_fit["VVdijet1"].SetLineColor(kOrange+7)
+        if("dijet2" in fname and not ("VV" in fname)):
+            flist[fname].SetLineColor(kViolet)
+            chi2graphs_norm[fname].SetLineColor(kViolet)
+            chi2graphs_fit["dijet2"].SetLineColor(kViolet)
+        if("dijet3" in fname and not ("VV" in fname) ):
+            flist[fname].SetLineColor(kViolet+7)
+            chi2graphs_norm[fname].SetLineColor(kViolet+7)
+            chi2graphs_fit["dijet3"].SetLineColor(kViolet+7)
+        if("ATLAS1" in fname):
+            flist[fname].SetLineColor(kCyan)
+            chi2graphs_norm[fname].SetLineColor(kCyan)
+            chi2graphs_fit["ATLAS1"].SetLineColor(kCyan)
+        if("ATLAS2" in fname):
+            flist[fname].SetLineColor(kCyan+2)
+            chi2graphs_norm[fname].SetLineColor(kCyan+2)
+            chi2graphs_fit["ATLAS2"].SetLineColor(kCyan+2)
+        if("exPow" in fname):
+            flist[fname].SetLineColor(kPink)
+            chi2graphs_norm[fname].SetLineColor(kPink)
+            chi2graphs_fit["exPow"].SetLineColor(kPink)
 
 
 #fLow=TF1("fLow", "[0]*(2*[1]/([2]*x)**[3]-[4]/([5] + [6]*x + x**2)**[7])", 1000, STup)
@@ -524,28 +600,33 @@ stExc4Hist =PlotsDir.Get(histname04)
 #stExc2or3Hist = stExc2Hist.Clone("stExc0203Hist")
 #stExc2or3Hist.Add(stExc3Hist)
 
-#####    Fit N=2   ###############
-if("f1_exc2" in f2_list): f2_list["f1_exc2"].SetParameters(8e6, 0.5, 9)
-if("f2_exc2" in f2_list): f2_list["f2_exc2"].SetParameters(2.4e6, -3, 4.7, 0.4)
-#if("f3_exc2" in f2_list): #f2_list["f3_exc2"].SetParameters(6e5, 0.4, -0.1, 4)
-if("f4_exc2" in f2_list): f2_list["f4_exc2"].SetParameters(1.5e9, -31,  -0.8)
-
 #####    Fit N=3   #################
-if("f1_exc3" in f3_list): f3_list["f1_exc3"].SetParameters(2e13, 2, 14)
-if("f2_exc3" in f3_list): f3_list["f2_exc3"].SetParameters(2.4e6, -27, 1.9, -0.48)
-#if("f3_exc3" in f3_list): #f3_list["f3_exc3"].SetParameters(6e5, 0.4, -0.1, 4)
-if("f4_exc3" in f3_list): f3_list["f4_exc3"].SetParameters(1.5e9, -31,  -0.8)
-if("f5_exc3" in f3_list): f3_list["f5_exc3"].SetParameters(37, 9 ,3,  -0.9)
-
-#####    Fit N=4   #################
-if("f1_exc4" in f4_list): f4_list["f1_exc4"].SetParameters(8e6, 0.5, 9)
-if("f2_exc4" in f4_list): f4_list["f2_exc4"].SetParameters(2.4e6, -27, 1.9, -0.48)
-#if("f3_exc4" in f4_list): #f4_list["f3_exc4"].SetParameters(3e8, 0.3, -1, 4)
-if("f4_exc4" in f4_list): f4_list["f4_exc4"].SetParameters(1.5e10, -31,  -0.8)
-if("f5_exc4" in f4_list): f4_list["f5_exc4"].SetParameters(37, 9,3,  -0.9)
+#if("f1_exc3" in f3_list): f3_list["f1_exc3"].SetParameters(2e13, 0.3, 1)
+#if("f2_exc3" in f3_list): f3_list["f2_exc3"].SetParameters(2.4e6, -27, 1.9, -0.48)
+#if("f3_exc3" in f3_list): f3_list["f3_exc3"].SetParameters(6e5, 0.4, -0.1, 4)
+#if("f4_exc3" in f3_list): f3_list["f4_exc3"].SetParameters(1.5e9, -31,  -0.8)
+#if("f5_exc3" in f3_list): f3_list["f5_exc3"].SetParameters(37, 9 ,3,  -0.9)
+#
+######    Fit N=4   #################
+#if("f1_exc4" in f4_list): f4_list["f1_exc4"].SetParameters(8e6, 0.3, 1)
+#if("f2_exc4" in f4_list): f4_list["f2_exc4"].SetParameters(2.4e6, -27, 1.9, -0.48)
+#if("f3_exc4" in f4_list): f4_list["f3_exc4"].SetParameters(3e8, 0.3, -1, 4)
+#if("f4_exc4" in f4_list): f4_list["f4_exc4"].SetParameters(1.5e10, -31,  -0.8)
+#if("f5_exc4" in f4_list): f4_list["f5_exc4"].SetParameters(37, 9,3,  -0.9)
 
 for flist in AllFitList:
     for fname in flist:
+        if("f1"       in fname):  flist[fname].SetParameters(1, 0.3,     1)
+        if("f2"       in fname):  flist[fname].SetParameters(1, -27,   1.9,  -0.48)
+        if("f3"       in fname):  flist[fname].SetParameters(1, 0.4,  -0.1,      4)
+        if("f4"       in fname):  flist[fname].SetParameters(1, -31,  -0.8)
+        if("VVdijet2" in fname):  flist[fname].SetParameters(1,   9,     3,   -0.9)
+        if("VVdijet1" in fname):  flist[fname].SetParameters(1,  10,     3,   -0.7)
+        if("dijet2"   in fname):  flist[fname].SetParameters(1,  -1,    -1)
+        if("dijet3"   in fname):  flist[fname].SetParameters(1, -10,    -1,     -1)
+        if("ATLAS1"   in fname):  flist[fname].SetParameters(1,   1,     1)
+        if("ATLAS2"   in fname):  flist[fname].SetParameters(1,   1,     1)
+        if("exPow"    in fname):  flist[fname].SetParameters(1,   1,     1)
         if("exc2" in fname):
             refhist = stExc2Hist
             flist[fname].SetLineStyle(1)
@@ -553,12 +634,12 @@ for flist in AllFitList:
         if("exc3" in fname):
             refhist = stExc3Hist
             flist[fname].SetLineStyle(2)
-            chi2graphs[fname].SetLineStyle(2)
+            chi2graphs_norm[fname].SetLineStyle(2)
             customfit( flist[fname], refhist,"exc3")
         if("exc4" in fname):
             refhist = stExc4Hist
             flist[fname].SetLineStyle(3)
-            chi2graphs[fname].SetLineStyle(3)
+            chi2graphs_norm[fname].SetLineStyle(3)
             customfit( flist[fname], refhist,"exc4")
 
 #    print "Printing list of chi2"
@@ -596,6 +677,11 @@ for j in range(2,12):
     stExc2Hist=PlotsDir.Get(Exc02HistName)
     stExc3Hist=PlotsDir.Get(Exc03HistName)
     
+    if rebin :
+        stExc2Hist.Rebin()
+        stExc3Hist.Rebin()
+        stExcHist.Rebin()
+        stIncHist.Rebin()
     if j==2:
         NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,True)
     if j==3:
@@ -611,22 +697,41 @@ for j in range(2,12):
 c1= TCanvas("chi2graph","Chi2 vs N", 800,600)
 OutFile.Append(c1)
 
-#chi2graph_f5.SetLineColor(kYellow)
-#chi2graph_f5_exc3.SetLineColor(kSpring+10)
-
 leg = TLegend(0.7,0.7,0.9,0.9)
-chi2graphs["f1_exc4"].Draw()
-for gname in chi2graphs:
+chi2graphs_norm[chi2graphs_norm.keys()[0]].Draw()
+for gname in chi2graphs_norm:
    print "now drawing chi2 graphs %s"%gname
-   chi2graphs[gname].Draw("SAME")
-   leg.AddEntry(chi2graphs[gname],gname,"L")
-chi2graphs["f1_exc4"].SetTitle("Chi2/Ndof for different fit functions")
-chi2graphs["f1_exc4"].GetXaxis().SetTitle("Inclusive Multiplicity")
-chi2graphs["f1_exc4"].GetYaxis().SetTitle("Chi2/Ndof")
-chi2graphs["f1_exc4"].GetYaxis().SetRangeUser(0,50)
+   chi2graphs_norm[gname].Draw("SAME")
+   leg.AddEntry(chi2graphs_norm[gname],gname,"L")
+chi2graphs_norm[chi2graphs_norm.keys()[0]].SetTitle("Chi2/Ndof for different fit functions at normalization")
+chi2graphs_norm[chi2graphs_norm.keys()[0]].GetXaxis().SetTitle("Inclusive Multiplicity")
+chi2graphs_norm[chi2graphs_norm.keys()[0]].GetYaxis().SetTitle("Chi2/Ndof")
+chi2graphs_norm[chi2graphs_norm.keys()[0]].GetYaxis().SetRangeUser(0,50)
 leg.SetFillStyle(1001);
 leg.SetFillColor(0);
 leg.Draw()
+c1.Write()
+# Write the chi2pNDF graphs for fitting
+c1.Clear()
+leg.Clear()
+c1.SetName("chi2graph_fit")
+chi2graphs_fit[chi2graphs_fit.keys()[0]].Draw()
+
+for gname in chi2graphs_fit:
+   print "now drawing chi2 graphs %s"%gname
+   chi2graphs_fit[gname].Draw("SAME")
+#   chi2graphs_fit[gname].Print()
+   leg.AddEntry(chi2graphs_fit[gname],gname,"L")
+chi2graphs_fit[chi2graphs_fit.keys()[0]].SetTitle("Chi2/Ndof for different fit functions at fitting")
+chi2graphs_fit[chi2graphs_fit.keys()[0]].GetXaxis().SetTitle("Exclusive Multiplicity")
+chi2graphs_fit[chi2graphs_fit.keys()[0]].GetYaxis().SetTitle("Chi2/Ndof")
+chi2graphs_fit[chi2graphs_fit.keys()[0]].GetYaxis().SetRangeUser(0,2)
+leg.SetFillStyle(1001);
+leg.SetFillColor(0);
+leg.Draw()
+print tabulate(chi2Table,"firstrow")
+#for row in chi2Table:
+#    print row
 c1.Write()
 
 #if __name__ == '__main__':
