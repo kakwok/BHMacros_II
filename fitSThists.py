@@ -189,22 +189,58 @@ def getMeanBinContent(hist):
     sumY = sumY /nFilledBin  
     return sumY
        
-def getNormalizedFunction(f, hist, xlowbin, xupbin, refHist, xlowedge, xupedge, binwidth):
+def getNormalizedFunctionWithChi2(f, hist, ExcOrInc, j):
     debug = False;
+    histBinTotal = 0;
     normBinTotal = 0;
-    refHistTotal = 0;
+    Total = 0;
 
-    for normbin in range(xlowbin, xupbin):
-        normBinTotal+=hist.GetBinContent(normbin)
+    if ("exc3" in f.GetName()):
+        normHist = stExc3Hist
+    if ("exc4" in f.GetName()):
+        normHist = stExc4Hist
 
-    # this assumes all the bins have the same width and the fit well describe the normalization range, which is OK, because it's close to fit range
-    normfactor =  (normBinTotal/f.Integral(xlowedge, xupedge))*binwidth 
+    if (ExcOrInc=="Exc"):
+        LowerNormBound    = float(fitNormRanges.getLowerNormBound("exc%i"%j))
+        UpperNormBound    = float(fitNormRanges.getUpperNormBound("exc%i"%j))
+        lowerNormBin      = hist.GetXaxis().FindBin(LowerNormBound)
+        upperNormBin      = hist.GetXaxis().FindBin(UpperNormBound)
+        lowerNormBin_ref  = normHist.GetXaxis().FindBin(LowerNormBound)
+        upperNormBin_ref  = normHist.GetXaxis().FindBin(UpperNormBound)
+    if (ExcOrInc=="Inc"):
+        LowerNormBound    = float(fitNormRanges.getLowerNormBound("inc%i"%j))
+        UpperNormBound    = float(fitNormRanges.getUpperNormBound("inc%i"%j))
+        lowerNormBin      = hist.GetXaxis().FindBin(LowerNormBound)
+        upperNormBin      = hist.GetXaxis().FindBin(UpperNormBound)
+        lowerNormBin_ref  = normHist.GetXaxis().FindBin(LowerNormBound)
+        upperNormBin_ref  = normHist.GetXaxis().FindBin(UpperNormBound)
+
+    for normbin in range(lowerNormBin, upperNormBin):
+        histBinTotal+=hist.GetBinContent(normbin)
+    for normbin in range(lowerNormBin_ref, upperNormBin_ref):
+        normBinTotal+=normHist.GetBinContent(normbin)
+
+    #normfactor =  (normBinTotal/f.Integral(xlowedge, xupedge))*binwidth 
+    normfactor =  histBinTotal/normBinTotal 
     if debug:
-        print " The normfactor for %s is %.3f  bin sum(numerator)=%s integral(denorminator) = %s" % ( f.GetName(), normfactor, normBinTotal, f.Integral(xlowedge,xupedge))
+        print " The normfactor for %s is %.3f  | bin sum(numerator)=%s bin sum(denorminator) = %s" % ( f.GetName(), normfactor, histBinTotal, normBinTotal )
     fNormalized = f.Clone()
-    fNormalized.SetRange(xlowedge, 14000)
+    fNormalized.SetRange(LowerNormBound, UpperNormBound)
     fNormalized.SetParameter(0, f.GetParameter(0)*normfactor)
-    return fNormalized
+
+    chi2sum = 0
+    for normbin in range(lowerNormBin, upperNormBin):
+        x       = hist.GetBinCenter(normbin)
+        y       = hist.GetBinContent(normbin) 
+        errY    = hist.GetBinError(normbin) 
+        chi2sum += pow( (y - fNormalized.Eval(x) )/errY  ,2)
+    chi2me = chi2sum / fNormalized.GetNDF()
+    chi2  = hist.Chisquare( fNormalized ,"R")/ fNormalized.GetNDF()
+    fNormalized.SetRange(LowerNormBound, 14000)
+    chi2_full  = hist.Chisquare( fNormalized ,"R")/ fNormalized.GetNDF()
+    print "%s   chi2 = %.3f   chi2_full = %.3f     chi2_me = %.3f" % (fNormalized.GetName(), chi2, chi2_full,chi2me)
+
+    return fNormalized ,chi2me
 
 def customfit(f, Sthist, norm):
     print "------------------------------------"
@@ -232,6 +268,7 @@ def customfit(f, Sthist, norm):
         chi2Table.append(chi2Table_row)
     print "Done fitting %s, result = %s, %s has parameters :"%( f.GetName(),int(r), f.GetName()) , pars
     print "Done fitting %s, %s has chi2perNDF = %.5f :"%(f.GetName(), f.GetName(), chi2pNDF)
+
 
 def ratioplot(fbest, sthist,xlow,xup):
     h = sthist.Clone("h_ratio")
@@ -296,12 +333,11 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     for flist in AllFitList:
         for fname in flist:
 	    fname_norm = fname +"_norm"
-    	    fnorm      = getNormalizedFunction( flist[fname], stHist, lowerNormBin, upperNormBin, stRefHist,lowerNormEdge, upperNormEdge, binwidth)
-            chi2 = stHist.Chisquare( fnorm ,"R")/ fnorm.GetNDF()
+    	    fnorm,chi2      = getNormalizedFunctionWithChi2( flist[fname], stHist, ExcOrInc, j )
     	    chi2_list.append(chi2)
     	    chi2_devlist.append(abs(chi2-1))
-            #if "VVdijet1_exc3" in fname:
-            #    fbest = fnorm
+            if "ATLAS1_exc3" in fname:
+                fbest = fnorm
     	    functions.append( fnorm )
     	    if(ExcOrInc=="Inc"):
                 chi2graphs_norm[fname].SetPoint( chi2graphs_norm[fname].GetN(), j , chi2)
@@ -311,7 +347,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     #fbest    = f2Normalized
     #fLow     = getSymmetrizedFunction( fbest, functions, upperNormEdge, 14000)
     #fbest    = f2_norm_list["f2_norm"]
-    fbest     = functions[ chi2_devlist.index( min(chi2_devlist) ) ]
+    #fbest     = functions[ chi2_devlist.index( min(chi2_devlist) ) ]
     print "-----------------------------------------"
     print "In N=%i, fbest is chosen to be %s\n"%(j,fbest.GetName())
     fLow,fUp  = getSymmetrizedFunction( fbest, functions, 2500, 7000)
@@ -501,14 +537,14 @@ exPow_string    ="[0]*(x/13000)^[1]*TMath::Exp(1)^([2]*(x/13000))"
 
 # Define dictionaries of functions for fitting different histograms
 #fnames = {"f1":f1_string,"f2":f2_string,"f3":f3_string,"f4":f4_string,"f5":f5_string}
-#fnames = {"f1":f1_string,"f2":f2_string,"f4":f4_string}
-#fnames.update({"VVdijet2":VVdijet2_string,"VVdijet1":VVdijet1_string})
-#fnames.update({"ATLAS1":ATLAS1_string,"ATLAS2":ATLAS2_string})
-#fnames.update({"dijet2":dijet2_string,"dijet3":dijet3_string})
+fnames = {"f1":f1_string,"f2":f2_string,"f4":f4_string}
+fnames.update({"VVdijet2":VVdijet2_string,"VVdijet1":VVdijet1_string})
+fnames.update({"ATLAS1":ATLAS1_string,"ATLAS2":ATLAS2_string})
+fnames.update({"dijet2":dijet2_string,"dijet3":dijet3_string})
 #fnames.update({"exPow":exPow_string})
 
-fnames = {"VVdijet2":VVdijet2_string,"VVdijet1":VVdijet1_string}
-fnames.update({"ATLAS1":ATLAS1_string,"ATLAS2":ATLAS2_string})
+#fnames = {"VVdijet2":VVdijet2_string,"VVdijet1":VVdijet1_string}
+#fnames.update({"ATLAS1":ATLAS1_string,"ATLAS2":ATLAS2_string})
 #fnames = {"dijet2":dijet2_string,"dijet3":dijet3_string}
 #fnames.update({"exPow":exPow_string})
 for fname in fnames:
@@ -623,7 +659,7 @@ for flist in AllFitList:
         if("VVdijet2" in fname):  flist[fname].SetParameters(1,   9,     3,   -0.9)
         if("VVdijet1" in fname):  flist[fname].SetParameters(1,  10,     3,   -0.7)
         if("dijet2"   in fname):  flist[fname].SetParameters(1,  -1,    -1)
-        if("dijet3"   in fname):  flist[fname].SetParameters(1, -10,    -1,     -1)
+        if("dijet3"   in fname):  flist[fname].SetParameters(1, -10,    -8,     -1)
         if("ATLAS1"   in fname):  flist[fname].SetParameters(1,   1,     1)
         if("ATLAS2"   in fname):  flist[fname].SetParameters(1,   1,     1)
         if("exPow"    in fname):  flist[fname].SetParameters(1,   1,     1)
@@ -654,11 +690,13 @@ for j in range(2,12):
            IncHistName    =("stInc%02iHist_tight"%j)
            Exc02HistName  =("stExc02Hist_tight")
            Exc03HistName  =("stExc03Hist_tight")
+           Exc04HistName  =("stExc04Hist_tight")
         else:
            ExcHistName    =("stExc%02iHist"%j)
            IncHistName    =("stInc%02iHist"%j)
            Exc02HistName  =("stExc02Hist")
            Exc03HistName  =("stExc03Hist")
+           Exc04HistName  =("stExc04Hist")
           
     if (argv[4]=="useMHT"):
         if("ST_tight" in PlotsDir.GetName()):
@@ -666,30 +704,33 @@ for j in range(2,12):
            IncHistName    =("stInc%02iHistMHT_tight"%j)
            Exc02HistName  =("stExc02HistMHT_tight")
            Exc03HistName  =("stExc03HistMHT_tight")
+           Exc04HistName  =("stExc04HistMHT_tight")
         else:
            ExcHistName    =("stExc%02iHistMHT"%j)
            IncHistName    =("stInc%02iHistMHT"%j)
            Exc02HistName  =("stExc02HistMHT")
            Exc03HistName  =("stExc03HistMHT")
+           Exc04HistName  =("stExc04HistMHT")
 
     stExcHist =PlotsDir.Get(ExcHistName  )
     stIncHist =PlotsDir.Get(IncHistName  )
     stExc2Hist=PlotsDir.Get(Exc02HistName)
     stExc3Hist=PlotsDir.Get(Exc03HistName)
+    stExc4Hist=PlotsDir.Get(Exc04HistName)
     
     if rebin :
         stExc2Hist.Rebin()
         stExc3Hist.Rebin()
         stExcHist.Rebin()
         stIncHist.Rebin()
-    if j==2:
-        NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,True)
+    #if j==2:
+    #    NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,stExc2Hist,True)
     if j==3:
         NormAndDrawST(stExcHist,j,"Exc",stExc2Hist,True)
     if j==4:
         NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,True)
         
-    NormAndDrawST(stIncHist,j,"Inc",stExc2Hist,True)
+    #NormAndDrawST(stIncHist,j,"Inc",stExc2Hist,True)
     NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True)
     #NormAndDrawST(stExcHist,j,"Exc",stExc2or3Hist,False)
     #NormAndDrawST(stIncHist,j,"Inc",stExc2or3Hist,False)
@@ -706,7 +747,7 @@ for gname in chi2graphs_norm:
 chi2graphs_norm[chi2graphs_norm.keys()[0]].SetTitle("Chi2/Ndof for different fit functions at normalization")
 chi2graphs_norm[chi2graphs_norm.keys()[0]].GetXaxis().SetTitle("Inclusive Multiplicity")
 chi2graphs_norm[chi2graphs_norm.keys()[0]].GetYaxis().SetTitle("Chi2/Ndof")
-chi2graphs_norm[chi2graphs_norm.keys()[0]].GetYaxis().SetRangeUser(0,50)
+chi2graphs_norm[chi2graphs_norm.keys()[0]].GetYaxis().SetRangeUser(0,5)
 leg.SetFillStyle(1001);
 leg.SetFillColor(0);
 leg.Draw()
@@ -719,10 +760,6 @@ chi2graphs_fit[chi2graphs_fit.keys()[0]].Draw()
 
 for gname in chi2graphs_fit:
    print "now drawing chi2 graphs %s"%gname
-   chi2graphs_fit[gname].Draw("SAME")
-#   chi2graphs_fit[gname].Print()
-   leg.AddEntry(chi2graphs_fit[gname],gname,"L")
-chi2graphs_fit[chi2graphs_fit.keys()[0]].SetTitle("Chi2/Ndof for different fit functions at fitting")
 chi2graphs_fit[chi2graphs_fit.keys()[0]].GetXaxis().SetTitle("Exclusive Multiplicity")
 chi2graphs_fit[chi2graphs_fit.keys()[0]].GetYaxis().SetTitle("Chi2/Ndof")
 chi2graphs_fit[chi2graphs_fit.keys()[0]].GetYaxis().SetRangeUser(0,2)
