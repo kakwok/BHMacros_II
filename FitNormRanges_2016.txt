@@ -6,7 +6,7 @@ NormRange, exc,  2,  2500, 2900
 NormRange, exc,  3,  2500, 2900
 NormRange, exc,  4,  2500, 2900
 NormRange, exc,  5,  2500, 2900
-NormRange, exc,  6,  2500, 2900
+NormRange, exc,  6,  2900, 3300
 NormRange, exc,  7,  2900, 3300
 NormRange, exc,  8,  2900, 3300
 NormRange, exc,  9,  2900, 3300
@@ -16,7 +16,7 @@ NormRange, inc,  2,  2500, 2900
 NormRange, inc,  3,  2500, 2900 
 NormRange, inc,  4,  2500, 2900 
 NormRange, inc,  5,  2500, 2900 
-NormRange, inc,  6,  2500, 2900 
+NormRange, inc,  6,  2900, 3300 
 NormRange, inc,  7,  2900, 3300 
 NormRange, inc,  8,  2900, 3300 
 NormRange, inc,  9,  2900, 3300 
