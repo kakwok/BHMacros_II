@@ -55,7 +55,7 @@ DrawUncertainty= False
 
 
 chi2Table          = []
-chi2Table_head     = ["Name","Exc3/Exc4","chi2","ndof","chi2/ndof"]
+chi2Table_head     = ["Name","Exc3/Exc4","chi2","ndof","chi2/ndof","fitResult"]
 chi2Table.append(chi2Table_head)
 
 STup = 9000
@@ -233,23 +233,24 @@ def getNormalizedFunctionWithChi2(f, hist, ExcOrInc, j):
         x       = hist.GetBinCenter(normbin)
         y       = hist.GetBinContent(normbin) 
         errY    = hist.GetBinError(normbin) 
-        chi2sum += pow( (y - fNormalized.Eval(x) )/errY  ,2)
-    chi2me = chi2sum / fNormalized.GetNDF()
+        #chi2sum += pow( (y - fNormalized.Eval(x) )/errY  ,2)
+    #chi2me = chi2sum / fNormalized.GetNDF()
     chi2  = hist.Chisquare( fNormalized ,"R")/ fNormalized.GetNDF()
     fNormalized.SetRange(LowerNormBound, 14000)
-    chi2_full  = hist.Chisquare( fNormalized ,"R")/ fNormalized.GetNDF()
-    print "%s   chi2 = %.3f   chi2_full = %.3f     chi2_me = %.3f" % (fNormalized.GetName(), chi2, chi2_full,chi2me)
+    #print "%s   chi2 = %.3f    chi2_me = %.3f" % (fNormalized.GetName(), chi2, chi2me)
 
-    return fNormalized ,chi2me
+    #return fNormalized ,chi2me
+    return fNormalized ,chi2
 
 def customfit(f, Sthist, norm):
     print "------------------------------------"
     print "Start fitting %s ...." % f.GetName()
     # Guide the fit with the amplitude of the refhist in the fit region
     f.SetParameter(0, Sthist.Integral( Sthist.FindBin(fitNormRanges.getLowerFitBound(norm)), Sthist.FindBin(fitNormRanges.getUpperFitBound(norm))))
+    f.SetParLimits(0, 0, 1E9)
     for j in range(0, 30):
-        Sthist.Fit(f.GetName(), "Q0LR", "", fitNormRanges.getLowerFitBound(norm), fitNormRanges.getUpperFitBound(norm) )
-    r = Sthist.Fit(f.GetName(), "0LR", "", fitNormRanges.getLowerFitBound(norm), fitNormRanges.getUpperFitBound(norm) )
+        Sthist.Fit(f.GetName(), "Q0LRB", "", fitNormRanges.getLowerFitBound(norm), fitNormRanges.getUpperFitBound(norm) )
+    r = Sthist.Fit(f.GetName(), "0LRB", "", fitNormRanges.getLowerFitBound(norm), fitNormRanges.getUpperFitBound(norm) )
     pars=[]
     for i in range(0,f.GetNpar()):
         pars.append(f.GetParameter(i))
@@ -258,18 +259,27 @@ def customfit(f, Sthist, norm):
     if("exc3" in f.GetName()):
         fname = f.GetName().replace("_exc3","")
         chi2graphs_fit[fname].SetPoint( chi2graphs_fit[fname].GetN(), 3, chi2pNDF)
-        chi2Table_row = [fname,"3", "%.3f"%(f.GetChisquare()), "%.3f"%f.GetNDF(), "%.3f"%chi2pNDF]
+        chi2Table_row = [fname,"3", "%.3f"%(f.GetChisquare()), "%.3f"%f.GetNDF(), "%.3f"%chi2pNDF,int(r)]
         chi2Table.append(chi2Table_row)
         
     if("exc4" in f.GetName()):
         fname = f.GetName().replace("_exc4","")
         chi2graphs_fit[fname].SetPoint( chi2graphs_fit[fname].GetN(), 4 ,chi2pNDF)
-        chi2Table_row = [fname,"4", "%.3f"%(f.GetChisquare()), "%.3f"%f.GetNDF(), "%.3f"%chi2pNDF]
+        chi2Table_row = [fname,"4", "%.3f"%(f.GetChisquare()), "%.3f"%f.GetNDF(), "%.3f"%chi2pNDF,int(r)]
         chi2Table.append(chi2Table_row)
     print "Done fitting %s, result = %s, %s has parameters :"%( f.GetName(),int(r), f.GetName()) , pars
     print "Done fitting %s, %s has chi2perNDF = %.5f :"%(f.GetName(), f.GetName(), chi2pNDF)
 
-
+def pickBestFit( functions, chi2_devlist):
+    for f in functions:
+        fname = f.GetName()
+        #if "ATLAS2_exc3" in fname:
+        if "f2_exc3" in fname:
+            return f
+        if "ATLAS2_exc4" in fname:
+        #if "UA21_exc4" in fname:
+            return f
+    return functions[ chi2_devlist.index( min(chi2_devlist) ) ]
 def ratioplot(fbest, sthist,xlow,xup):
     h = sthist.Clone("h_ratio")
  
@@ -336,18 +346,24 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     	    fnorm,chi2      = getNormalizedFunctionWithChi2( flist[fname], stHist, ExcOrInc, j )
     	    chi2_list.append(chi2)
     	    chi2_devlist.append(abs(chi2-1))
-            if "ATLAS1_exc3" in fname:
-                fbest = fnorm
-    	    functions.append( fnorm )
+            if(ExcOrInc=="Exc"):
+                if((ExcOrInc+str(j)).lower() in fname):
+                    functions.append( fnorm )
+            else:
+        	    functions.append( fnorm )
     	    if(ExcOrInc=="Inc"):
                 chi2graphs_norm[fname].SetPoint( chi2graphs_norm[fname].GetN(), j , chi2)
     	    if not DrawUncertainty:
-                fnorm.Draw("SAME")
+                if (ExcOrInc=="Inc"):
+                    fnorm.Draw("SAME")
+                elif( (ExcOrInc+str(j)).lower() in fname):
+                    fnorm.Draw("SAME")          # draw only the fitted function for exclusive spectrums
     
     #fbest    = f2Normalized
     #fLow     = getSymmetrizedFunction( fbest, functions, upperNormEdge, 14000)
     #fbest    = f2_norm_list["f2_norm"]
     #fbest     = functions[ chi2_devlist.index( min(chi2_devlist) ) ]
+    fbest = pickBestFit( functions, chi2_devlist )
     print "-----------------------------------------"
     print "In N=%i, fbest is chosen to be %s\n"%(j,fbest.GetName())
     fLow,fUp  = getSymmetrizedFunction( fbest, functions, 2500, 7000)
@@ -380,8 +396,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
         leg2.SetTextSize(0.03)
         leg2.Draw("SAME")
 	fbest.Draw("SAME")
-    fLow.SetLineColor(kBlue)
-    fLow.Draw("SAME")
+    #fLow.SetLineColor(kBlue)
+    #fLow.Draw("SAME")
 
     legend = TLegend(0.6, 0.7, 0.8, 0.85,"", "brNDC")
     legend.SetTextSize(0.04);
@@ -437,7 +453,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     stExcRatio.GetYaxis().SetTitle("(Data-Fit)/Fit")
     stExcRatio.Add(fbest,-1)    # Subtract best fit
     stExcRatio.Divide(fbest,1)  # Divide by best fit    
-    stExcRatio.GetYaxis().SetRangeUser(-0.2,0.2)
+    stExcRatio.GetYaxis().SetRangeUser(-1,1)
+    #stExcRatio.GetYaxis().SetRangeUser(-0.05,0.05)
     stExcRatio.GetXaxis().SetLabelSize(0.1)
     stExcRatio.GetXaxis().SetTitleSize(0.1)
     stExcRatio.GetXaxis().SetTitle("S_{T} (GeV)")
@@ -521,27 +538,53 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
 #f4_exc3 = TF1("f4_exc3", "([0]*(1+x)^[1])/(x**([2]*TMath::Log(x)))", 1000, STup)
 #f5_exc3 = TF1("f5_exc3", "([0]*(1-x)^[1])/(x**([2]+[3]*TMath::Log(x)))", 1000, STup)
 
-f1_string       ="[0]/([1]+x/13000)**[2]"
-f2_string       ="([0]*(1+x/13000)^[1])/((x/13000)**([2]+[3]*TMath::Log(x/13000)))"
-f3_string       ="[0]/([1] + [2]*x*0.001 + (0.001*x)**2)**[3]"
+#f1_string       ="[0]/([1]+x/13000)**[2]"                      # Cannot fit with 2500-4000
+f3_string       ="[0]/([1] + [2]*x*0.001 + (0.001*x)**2)**[3]" # Failed to fit 
 f4_string       ="([0]*(1+x/13000)^[1])/((x/13000)**([2]*TMath::Log(x/13000)))"
-VVdijet1_string ="([0]*(1-x/13000)^[1])/((x/13000)**([2]))" 
-VVdijet2_string ="([0]*(1-x/13000)^[1])/((x/13000)**([2]+[3]*TMath::Log(x/13000)))" 
-dijet2_string   ="[0]*(x)^([1]+[2]*TMath::Log(x/13000))" 
-#dijet3_string   ="[0]*(TMath::Exp(1))^([1]+[2]*TMath::Log(x/13000)+[3]*(TMath::Log(x/13000))^2)" 
-dijet3_string   ="[0]*(x)^([1]+[2]*TMath::Log(x/13000)+[3]*(TMath::Log(x/13000))^2)" 
+f2_string       ="([0]*(1+x/13000)^[1])/((x/13000)**([2]+[3]*TMath::Log(x/13000)))"
 ATLAS1_string   ="([0]*(1-(x/13000)^(1/3))^[1])/((x/13000)^[2])"
 ATLAS2_string   ="([0]*(1-(x/13000)^(1/3))^[1])/((x/13000)^([2]+[3]*(TMath::Log(x/13000))^2))"
-exPow_string    ="[0]*(x/13000)^[1]*TMath::Exp(1)^([2]*(x/13000))"
+dijet1_string   ="([0]*(1-x/13000)^[1])/((x/13000)**([2]))" 
+dijet2_string   ="([0]*(1-x/13000)^[1])/((x/13000)**([2]+[3]*TMath::Log(x/13000)))" 
+dijet3_string   ="([0]*(1-x/13000)^[1])/((x/13000)**([2]+[3]*TMath::Log(x/13000)+[4]*TMath::Log(x/13000)^2))"
+UA21_string     ="[0]*(x/13000)^[1]*TMath::Exp(1)^([2]*(x/13000))"
+UA22_string     ="[0]*(x/13000)^([1])*TMath::Exp(1)^([2]*(x/13000)+[3]*(x/13000)^2)"
+UA23_string     ="[0]*(x/13000)^([1])*TMath::Exp(1)^([2]*(x/13000)+[3]*(x/13000)^2+[4]*(x/13000)^3)"
+dijetMod        ="([0]*(1-x/13000)^[1])*(1+[2]*(x/13000))/((x/13000)**([2]+[3]*TMath::Log(x/13000)))"
+
+#dijet1_string="([0]*(1-x/13000)^[1])*((x/13000)**([2]*TMath::Log(x/13000)))"           # standard dijet without constant exponent 
+#dijet2_string="([0]*(1-x/13000)^[1])*((1+x/13000)**([2]*TMath::Log(x/13000)))"         # replace x by 1+x
+#f4_string    ="([0]*(1-x/13000)^[1])*((TMath::Exp(1))**([2]*(x/13000)^2))"             # replace x by exp
+#ATLAS1_string="([0]*(1-(x/13000)^(1/3))^[1])*((x/13000)^([2]*(TMath::Log(x/13000))))"  # replace (1-x) by (1-x^1/3)
+#ATLAS2_string="([0]*(1-(x/13000))^[1])*((x/13000)^([2]*(x/13000)))"                    # replace lnx by x in exponent
+#f2_string    ="([0]*(1-x/13000)^[1])*((1+x/13000)**([2]*(x/13000)))"                   # replace x by 1+x, replace lnx by x in exponent
+#dijet3_string="([0]*(1-x/13000)^[1])*((x/13000)**([2]+[3]*TMath::Log(x/13000)))"       # standard dijet 
+#UA21_string     ="[0]*(x/13000)^[1]*TMath::Exp(1)^([2]*(x/13000))"
+#UA22_string     ="[0]*(x/13000)^([1])*TMath::Exp(1)^([2]*(x/13000)+[3]*(x/13000)^2)"
+#UA23_string     ="[0]*(x/13000)^([1])*TMath::Exp(1)^([2]*(x/13000)+[3]*(x/13000)^2+[4]*(x/13000)^3)"
+#dijetMod        ="([0]*(1-x/13000)^[1])*(1+[2]*(x/13000))/((x/13000)**([2]+[3]*TMath::Log(x/13000)))"
 
 
 # Define dictionaries of functions for fitting different histograms
 #fnames = {"f1":f1_string,"f2":f2_string,"f3":f3_string,"f4":f4_string,"f5":f5_string}
-fnames = {"f1":f1_string,"f2":f2_string,"f4":f4_string}
-fnames.update({"VVdijet2":VVdijet2_string,"VVdijet1":VVdijet1_string})
-fnames.update({"ATLAS1":ATLAS1_string,"ATLAS2":ATLAS2_string})
-fnames.update({"dijet2":dijet2_string,"dijet3":dijet3_string})
+#fnames = {"f1":f1_string,"f2":f2_string,"f4":f4_string}
+#fnames.update({"VVdijet2":VVdijet2_string,"VVdijet1":VVdijet1_string})
+#fnames.update({"ATLAS1":ATLAS1_string,"ATLAS2":ATLAS2_string})
+#fnames.update({"dijet2":dijet2_string,"dijet3":dijet3_string})
 #fnames.update({"exPow":exPow_string})
+fnames = {
+"f2":f2_string,
+"f4":f4_string,
+"dijet1":dijet1_string,
+"dijet2":dijet2_string,
+"dijet3":dijet3_string,
+"ATLAS1":ATLAS1_string,
+"ATLAS2":ATLAS2_string,
+"UA21":UA21_string,
+"UA22":UA22_string,
+"UA23":UA23_string,
+"dijetMod":dijetMod
+}
 
 #fnames = {"VVdijet2":VVdijet2_string,"VVdijet1":VVdijet1_string}
 #fnames.update({"ATLAS1":ATLAS1_string,"ATLAS2":ATLAS2_string})
@@ -557,7 +600,7 @@ AllFitList=[f3_list,f4_list]
 #AllFitList=[f3_list]
 
 for flist in AllFitList:
-    for fname in flist:
+    for fname in sorted(flist.iterkeys()):
         chi2graphs_norm[fname]=TGraph()
         if("f1" in fname):
             flist[fname].SetLineColor(kBlack)
@@ -572,37 +615,52 @@ for flist in AllFitList:
             chi2graphs_norm[fname].SetLineColor(kGreen)
             chi2graphs_fit["f3"].SetLineColor(kGreen)
         if("f4" in fname):
-            flist[fname].SetLineColor(kMagenta)
-            chi2graphs_norm[fname].SetLineColor(kMagenta)
-            chi2graphs_fit["f4"].SetLineColor(kMagenta)
-        if("VVdijet2" in fname):
+            flist[fname].SetLineColor(kRed)
+            flist[fname].SetLineWidth(3)
+            chi2graphs_norm[fname].SetLineColor(kRed)
+            chi2graphs_fit["f4"].SetLineColor(kRed)
+        if("dijet1" in fname):
             flist[fname].SetLineColor(kOrange)
             chi2graphs_norm[fname].SetLineColor(kOrange)
-            chi2graphs_fit["VVdijet2"].SetLineColor(kOrange)
-        if("VVdijet1" in fname):
-            flist[fname].SetLineColor(kOrange+7)
-            chi2graphs_norm[fname].SetLineColor(kOrange+7)
-            chi2graphs_fit["VVdijet1"].SetLineColor(kOrange+7)
-        if("dijet2" in fname and not ("VV" in fname)):
+            chi2graphs_fit["dijet1"].SetLineColor(kOrange)
+        if("dijet2" in fname):
+            flist[fname].SetLineColor(kOrange)
+            flist[fname].SetLineWidth(3)
+            chi2graphs_norm[fname].SetLineColor(kOrange)
+            chi2graphs_fit["dijet2"].SetLineColor(kOrange)
+        if("dijet3" in fname):
+            flist[fname].SetLineColor(kOrange)
+            flist[fname].SetLineWidth(5)
+            chi2graphs_norm[fname].SetLineColor(kOrange)
+            chi2graphs_fit["dijet3"].SetLineColor(kOrange)
+        if("UA21" in fname):
             flist[fname].SetLineColor(kViolet)
             chi2graphs_norm[fname].SetLineColor(kViolet)
-            chi2graphs_fit["dijet2"].SetLineColor(kViolet)
-        if("dijet3" in fname and not ("VV" in fname) ):
-            flist[fname].SetLineColor(kViolet+7)
-            chi2graphs_norm[fname].SetLineColor(kViolet+7)
-            chi2graphs_fit["dijet3"].SetLineColor(kViolet+7)
+            chi2graphs_fit["UA21"].SetLineColor(kViolet)
+        if("UA22" in fname):
+            flist[fname].SetLineColor(kViolet)
+            flist[fname].SetLineWidth(3)
+            chi2graphs_norm[fname].SetLineColor(kViolet)
+            chi2graphs_fit["UA22"].SetLineColor(kViolet)
+        if("UA23" in fname):
+            flist[fname].SetLineColor(kViolet)
+            flist[fname].SetLineWidth(5)
+            chi2graphs_norm[fname].SetLineColor(kViolet)
+            chi2graphs_fit["UA22"].SetLineColor(kViolet)
         if("ATLAS1" in fname):
             flist[fname].SetLineColor(kCyan)
             chi2graphs_norm[fname].SetLineColor(kCyan)
             chi2graphs_fit["ATLAS1"].SetLineColor(kCyan)
         if("ATLAS2" in fname):
-            flist[fname].SetLineColor(kCyan+2)
-            chi2graphs_norm[fname].SetLineColor(kCyan+2)
-            chi2graphs_fit["ATLAS2"].SetLineColor(kCyan+2)
-        if("exPow" in fname):
-            flist[fname].SetLineColor(kPink)
-            chi2graphs_norm[fname].SetLineColor(kPink)
-            chi2graphs_fit["exPow"].SetLineColor(kPink)
+            flist[fname].SetLineColor(kCyan)
+            flist[fname].SetLineWidth(3)
+            chi2graphs_norm[fname].SetLineColor(kCyan)
+            chi2graphs_fit["ATLAS2"].SetLineColor(kCyan)
+        if("dijetMod" in fname):
+            flist[fname].SetLineColor(kGreen)
+            chi2graphs_norm[fname].SetLineColor(kGreen)
+            chi2graphs_fit["dijetMod"].SetLineColor(kGreen)
+
 
 
 #fLow=TF1("fLow", "[0]*(2*[1]/([2]*x)**[3]-[4]/([5] + [6]*x + x**2)**[7])", 1000, STup)
@@ -651,18 +709,22 @@ stExc4Hist =PlotsDir.Get(histname04)
 #if("f5_exc4" in f4_list): f4_list["f5_exc4"].SetParameters(37, 9,3,  -0.9)
 
 for flist in AllFitList:
-    for fname in flist:
+    for fname in sorted(flist.iterkeys()):
         if("f1"       in fname):  flist[fname].SetParameters(1, 0.3,     1)
         if("f2"       in fname):  flist[fname].SetParameters(1, -27,   1.9,  -0.48)
         if("f3"       in fname):  flist[fname].SetParameters(1, 0.4,  -0.1,      4)
         if("f4"       in fname):  flist[fname].SetParameters(1, -31,  -0.8)
-        if("VVdijet2" in fname):  flist[fname].SetParameters(1,   9,     3,   -0.9)
-        if("VVdijet1" in fname):  flist[fname].SetParameters(1,  10,     3,   -0.7)
-        if("dijet2"   in fname):  flist[fname].SetParameters(1,  -1,    -1)
-        if("dijet3"   in fname):  flist[fname].SetParameters(1, -10,    -8,     -1)
+        if("dijet1"   in fname):  flist[fname].SetParameters(1,   9,     3,   -0.9)
+        if("dijet2"   in fname):  flist[fname].SetParameters(1,  10,     3,   -0.7)
+        #if("dijet3"   in fname):  flist[fname].SetParameters(1,  15,     3,   2)
+        if("dijet3"   in fname):  flist[fname].SetParameters(1,  10,     3,   -0.2,   1)
         if("ATLAS1"   in fname):  flist[fname].SetParameters(1,   1,     1)
-        if("ATLAS2"   in fname):  flist[fname].SetParameters(1,   1,     1)
-        if("exPow"    in fname):  flist[fname].SetParameters(1,   1,     1)
+        if("ATLAS2"   in fname):  flist[fname].SetParameters(1,   1,     1,      1)
+        if("UA21"     in fname):  flist[fname].SetParameters(1,   1,     -1)
+        if("UA22"     in fname):  flist[fname].SetParameters(1,   -1,     -1,      1)
+        if("UA23"     in fname):  flist[fname].SetParameters(1,   -1,     -1,      -1,   1)
+        if("dijetMod" in fname):  flist[fname].SetParameters(1,  -1,     1,      1, 0.1)
+
         if("exc2" in fname):
             refhist = stExc2Hist
             flist[fname].SetLineStyle(1)
