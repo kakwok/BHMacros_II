@@ -269,7 +269,7 @@ def customfit(f, Sthist, norm):
     fClone.SetRange(fitNormRanges.getLowerFitBound(norm),13000)
     Sthist.Fit( fClone.GetName(), "Q0LRB", "" , fitNormRanges.getLowerFitBound(norm), 13000)
     chi2full     = Sthist.Chisquare( fClone, "R") 
-    UpperInt     = fClone.Integral( float(fitNormRanges.getUpperFitBound(norm)), 13000)
+    UpperInt     = fClone.Integral( 5000.0, 7000.0)
     ndf_full=0
     for i in range(Sthist.FindBin(fitNormRanges.getLowerFitBound(norm)),Sthist.FindBin(13000)+1):
         if not(Sthist.GetBinContent(i)==0):  ndf_full+=1
@@ -298,9 +298,9 @@ def pickBestFit( functions, chi2_devlist):
     for f in functions:
         fname = f.GetName()
         #if "ATLAS2_exc3" in fname:
-        if "dijet1_exc3" in fname:
+        if "ATLASBH1_exc3" in fname:
             return f
-        if "dijet1_exc4" in fname:
+        if "ATLASBH1_exc4" in fname:
         #if "UA21_exc4" in fname:
             return f
     return functions[ chi2_devlist.index( min(chi2_devlist) ) ]
@@ -864,7 +864,11 @@ leg.SetFillStyle(1001);
 leg.SetFillColor(0);
 leg.Draw()
 print tabulate(chi2Table,"firstrow")
-print "{} {}".format(np.median(np.array(f_integrals)), np.median(np.array(f_chi2)))
+print "Median Integral: %f"%np.median(np.array(f_integrals)) 
+print "Mean Integral: %f"%np.mean(np.array(f_integrals)) 
+print "(min+max)/2 Integral: %f"%( (np.amin(f_integrals)+np.amax(np.array(f_integrals)))/2.0 )
+print np.sort(np.array(f_integrals)) 
+print "Median chi2: %f"%np.median(np.array(f_chi2))
 #for row in chi2Table:
 #    print row
 c1.Write()
