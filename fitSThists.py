@@ -79,9 +79,11 @@ def symmetrizeFormula(f1,f2):
 
 
 # Return the symmetrized funtion w.r.t. bestfit among functions in the range xlow, xup
-def getSymmetrizedFunction(bestfit, functions, xlow, xup):
+def getEnvelopeFunctions(bestfit, functions, xlow, xup, mode):
     bestfit_pos = 0
     fsym_pos    = -1
+    fup_pos    = -1
+    flow_pos    = -1
     #get the position of the best fit
     i=0
     fnames= []
@@ -99,53 +101,98 @@ def getSymmetrizedFunction(bestfit, functions, xlow, xup):
 
     diffs             = []
     SignChanged       = False
-    for x in np.arange(xlow,xup+100,100):
-        last_diffs        = diffs
-        diffs             = []
-        abs_diffs         = []
-        for f in functions:
-            difference =  bestfit.Eval(x)  -  f.Eval(x) 
-            diffs.append( difference )
-            abs_diffs.append( abs(difference) )
-        #print "At x= ",x
-        #print "fnames = ",fnames
-        #print "diffs  = ",diffs
-        iMaxDiff = abs_diffs.index(max(abs_diffs)) 
-        if (len(last_diffs)>0):
-            if( diffs[iMaxDiff] * last_diffs[fsym_pos] < 0):
-                SignChanged = True
-            else:
-                SignChanged = False
-
-        SymRange_xup = x
-        # Find do we need to change symmetrize function
-        if((not fsym_pos == iMaxDiff) or (SignChanged)):
-            if not(fsym_pos==-1):
-                rangeString = "(x>="+str(SymRange_xlow)+" && x<"+str(SymRange_xup)+")*("
-                print "Symmetrize function changed from %s to %s at %s" % (fnames[fsym_pos],fnames[iMaxDiff],x)
-                if(not fLowFormula==""): fLowFormula += "+"
-                if(not fUpFormula=="" ): fUpFormula  += "+"
-               
-                # make sure fLow picks up the smaller function 
-                if( ( bestfit.Eval(SymRange_xlow) - functions[fsym_pos].Eval(SymRange_xlow))<0 ):
-                    fLowFormula  += rangeString + symmetrizeFormula(bestfit, functions[fsym_pos]) +")"
-                    fUpFormula   += rangeString + functions[fsym_pos].GetExpFormula("p").Data() +")"
+    if (mode=="symmetrize"):
+        for x in np.arange(xlow,xup+100,100):
+            last_diffs        = diffs
+            diffs             = []
+            abs_diffs         = []
+            for f in functions:
+                difference =  bestfit.Eval(x)  -  f.Eval(x) 
+                diffs.append( difference )
+                abs_diffs.append( abs(difference) )
+            #print "At x= ",x
+            #print "fnames = ",fnames
+            #print "diffs  = ",diffs
+            iMaxDiff = abs_diffs.index(max(abs_diffs)) 
+            iMinDiff = diffs.index(min(diffs)) # for picking lowest functions
+            if (len(last_diffs)>0):
+                if( diffs[iMaxDiff] * last_diffs[fsym_pos] < 0):
+                    SignChanged = True
                 else:
-                    fLowFormula  += rangeString +  functions[fsym_pos].GetExpFormula("p").Data()  +")"
-                    fUpFormula   += rangeString + symmetrizeFormula(bestfit, functions[fsym_pos]) +")"
-            #Mark the first pass
-            fsym_pos      = iMaxDiff 
-            SymRange_xlow = x
-    #Fill the formula up to xup
-    rangeString = "(x>="+str(SymRange_xlow)+" && x<"+str(SymRange_xup)+")*("
-    if(not fLowFormula==""): fLowFormula += "+"
-    if(not fUpFormula=="" ): fUpFormula  += "+"
-    if(( bestfit.Eval(SymRange_xlow) - functions[fsym_pos].Eval(SymRange_xlow))<0):
-        fLowFormula  += rangeString + symmetrizeFormula(bestfit, functions[fsym_pos]) +")"
-        fUpFormula   += rangeString + functions[fsym_pos].GetExpFormula("p").Data() +")"
+                    SignChanged = False
+
+            SymRange_xup = x
+            # Find do we need to change symmetrize function
+            if((not fsym_pos == iMaxDiff) or (SignChanged)):
+                if not(fsym_pos==-1):
+                    rangeString = "(x>="+str(SymRange_xlow)+" && x<"+str(SymRange_xup)+")*("
+                    print "Symmetrize function changed from %s to %s at %s" % (fnames[fsym_pos],fnames[iMaxDiff],x)
+                    if(not fLowFormula==""): fLowFormula += "+"
+                    if(not fUpFormula=="" ): fUpFormula  += "+"
+                   
+                    # make sure fLow picks up the smaller function 
+                    if( ( bestfit.Eval(SymRange_xlow) - functions[fsym_pos].Eval(SymRange_xlow))<0 ):
+                        fLowFormula  += rangeString + symmetrizeFormula(bestfit, functions[fsym_pos]) +")"
+                        fUpFormula   += rangeString + functions[fsym_pos].GetExpFormula("p").Data() +")"
+                    else:
+                        fLowFormula  += rangeString +  functions[fsym_pos].GetExpFormula("p").Data()  +")"
+                        fUpFormula   += rangeString + symmetrizeFormula(bestfit, functions[fsym_pos]) +")"
+                #Mark the first pass
+                fsym_pos      = iMaxDiff 
+                SymRange_xlow = x
+        #Fill the formula up to xup
+        rangeString = "(x>="+str(SymRange_xlow)+" && x<"+str(SymRange_xup)+")*("
+        if(not fLowFormula==""): fLowFormula += "+"
+        if(not fUpFormula=="" ): fUpFormula  += "+"
+        if(( bestfit.Eval(SymRange_xlow) - functions[fsym_pos].Eval(SymRange_xlow))<0):
+            fLowFormula  += rangeString + symmetrizeFormula(bestfit, functions[fsym_pos]) +")"
+            fUpFormula   += rangeString + functions[fsym_pos].GetExpFormula("p").Data() +")"
+        else:
+            fLowFormula  += rangeString +  functions[fsym_pos].GetExpFormula("p").Data()  +")"
+            fUpFormula   += rangeString + symmetrizeFormula(bestfit, functions[fsym_pos]) +")"
+    elif (mode=="shade"):
+        for x in np.arange(xlow,xup+100,100):
+            last_diffs        = diffs
+            diffs             = []
+            abs_diffs         = []
+            for f in functions:
+                difference =  bestfit.Eval(x)  -  f.Eval(x) 
+                diffs.append( difference )
+                abs_diffs.append( abs(difference) )
+            #print "At x= ",x
+            #print "fnames = ",fnames
+            #print "diffs  = ",diffs
+            iMaxDiff = diffs.index(max(diffs)) 
+            iMinDiff = diffs.index(min(diffs)) 
+
+            fUpSymRange_xup = x
+            fLowSymRange_xup = x
+            # Find do we need to change symmetrize function
+            if((not fup_pos == iMaxDiff) or not flow_pos == iMinDiff):
+                if not(fup_pos==-1):
+                    fUpRangeString = "(x>="+str(fUpSymRange_xlow)+" && x<"+str(fUpSymRange_xup)+")*("
+                    print "Maximum function changed from %s to %s at %s" % (fnames[fup_pos],fnames[iMaxDiff],x)
+                    if(not fUpFormula=="" ): fUpFormula  += "+"
+                    fUpFormula   += fUpRangeString +  functions[fup_pos].GetExpFormula("p").Data() +")"
+                if not(flow_pos==-1):
+                    fLowRangeString = "(x>="+str(fLowSymRange_xlow)+" && x<"+str(fLowSymRange_xup)+")*("
+                    print "Min function changed from %s to %s at %s" % (fnames[flow_pos],fnames[iMinDiff],x)
+                    if(not fLowFormula=="" ): fLowFormula  += "+"
+                    fLowFormula   += fLowRangeString +  functions[flow_pos].GetExpFormula("p").Data() +")"
+                #Mark the first pass
+                fup_pos      = iMaxDiff 
+                flow_pos     = iMinDiff 
+                fUpSymRange_xlow = x
+                fLowSymRange_xlow = x
+        #Fill the formula up to xup
+        fUpRangeString  = "(x>="+str(fUpSymRange_xlow)+" && x<"+str(fUpSymRange_xup)+")*("
+        fLowRangeString = "(x>="+str(fLowSymRange_xlow)+" && x<"+str(fLowSymRange_xup)+")*("
+        if(not fLowFormula==""): fLowFormula += "+"
+        if(not fUpFormula=="" ): fUpFormula  += "+"
+        fLowFormula  += fUpRangeString  +  functions[flow_pos].GetExpFormula("p").Data() +")"
+        fUpFormula   += fLowRangeString +  functions[fup_pos].GetExpFormula("p").Data() +")"
     else:
-        fLowFormula  += rangeString +  functions[fsym_pos].GetExpFormula("p").Data()  +")"
-        fUpFormula   += rangeString + symmetrizeFormula(bestfit, functions[fsym_pos]) +")"
+        print "ERROR! please use \"shade\" or \"symmetrize\" for mode"
 
     #print "Final fLow = ",fLowFormula
     #print "Final fUp  = ",fUpFormula
@@ -266,12 +313,12 @@ def customfit(f, Sthist, norm):
     chi2pNDF = f.GetChisquare()/ f.GetNDF()
     #Calculate chi2 for the full range with clone of f
     fClone.SetName(f.GetName()+"_fullRange")
-    fClone.SetRange(fitNormRanges.getLowerFitBound(norm),13000)
-    Sthist.Fit( fClone.GetName(), "Q0LRB", "" , fitNormRanges.getLowerFitBound(norm), 13000)
+    fClone.SetRange(fitNormRanges.getUpperFitBound(norm),13000)
+    Sthist.Fit( fClone.GetName(), "Q0LRB", "" , fitNormRanges.getUpperFitBound(norm), 13000)
     chi2full     = Sthist.Chisquare( fClone, "R") 
     UpperInt     = fClone.Integral( float(fitNormRanges.getUpperFitBound(norm)), 13000)
     ndf_full=0
-    for i in range(Sthist.FindBin(fitNormRanges.getLowerFitBound(norm)),Sthist.FindBin(13000)+1):
+    for i in range(Sthist.FindBin(fitNormRanges.getUpperFitBound(norm)),Sthist.FindBin(13000)+1):
         if not(Sthist.GetBinContent(i)==0):  ndf_full+=1
     ndf_full -= f.GetNpar()
     chi2fullpNDF = chi2full / ndf_full
@@ -390,7 +437,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     fbest = pickBestFit( functions, chi2_devlist )
     print "-----------------------------------------"
     print "In N=%i, fbest is chosen to be %s\n"%(j,fbest.GetName())
-    fLow,fUp  = getSymmetrizedFunction( fbest, functions, 2500, 7000)
+    fLow,fUp  = getEnvelopeFunctions( fbest, functions, 2500, 7500, "symmetrize")
     fillGraph= getFillGraph( fLow, fUp )
     
     if DrawUncertainty:
@@ -419,9 +466,10 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
                 leg2.AddEntry(fnorm,fnorm.GetName(),"l")
         leg2.SetTextSize(0.03)
         leg2.Draw("SAME")
+
 	fbest.Draw("SAME")
-    #fLow.SetLineColor(kBlue)
-    #fLow.Draw("SAME")
+    fLow.SetLineColor(kBlue)
+    fLow.Draw("SAME")
 
     legend = TLegend(0.6, 0.7, 0.8, 0.85,"", "brNDC")
     legend.SetTextSize(0.04);
@@ -691,9 +739,9 @@ for flist in AllFitList:
             chi2graphs_fit["dijetMod"].SetLineColor(kGreen)
         if("ATLASBH" in fname):
             i = int(fname.strip("ATLASTBH")[0])
-            flist[fname].SetLineColor(kBlue+i)
-            chi2graphs_norm[fname].SetLineColor(kBlue+i)
-            chi2graphs_fit[fname[:-5]].SetLineColor(kBlue+i)
+            flist[fname].SetLineColor(kBlue-3+i)
+            chi2graphs_norm[fname].SetLineColor(kBlue-3+i)
+            chi2graphs_fit[fname[:-5]].SetLineColor(kBlue-3+i)
 
 
 
