@@ -257,9 +257,9 @@ def getNormalizedFunctionWithChi2(f, hist, ExcOrInc, j, STlow=0, STup=0):
         errY    = hist.GetBinError(normbin) 
         #chi2sum += pow( (y - fNormalized.Eval(x) )/errY  ,2)
         #chi2me = chi2sum / fNormalized.GetNDF()
-        chi2sum += pow( (y - fNormalized.Eval(x) )/errY  ,2)
+        #chi2sum += pow( (y - fNormalized.Eval(x) )/errY  ,2)
         pass
-    chi2me = chi2sum / fNormalized.GetNDF()
+    #chi2me = chi2sum / fNormalized.GetNDF()
     chi2  = hist.Chisquare( fNormalized ,"R")/ fNormalized.GetNDF()
     fNormalized.SetRange(LowerNormBound, 14000)
     #print "%s   chi2 = %.3f    chi2_me = %.3f" % (fNormalized.GetName(), chi2, chi2me)
@@ -317,9 +317,9 @@ def pickBestFit( functions, chi2_devlist):
     for f in functions:
         fname = f.GetName()
         #if "ATLAS2_exc3" in fname:
-        if "ATLASBH1_exc3" in fname:
+        if "ATLASBH2_exc3" in fname:
             return f
-        if "ATLASBH1_exc4" in fname:
+        if "ATLASBH2_exc4" in fname:
         #if "UA21_exc4" in fname:
             return f
     return functions[ chi2_devlist.index( min(chi2_devlist) ) ]
