@@ -4,6 +4,7 @@
 from ROOT import *
 from fitAndNormRanges import *
 from sys import argv
+from math import sqrt
 import CMS_lumi
 import numpy as np
 from tabulate import tabulate
@@ -13,7 +14,7 @@ CMS_lumi.lumi_13TeV = "2.3 fb^{-1}"
 CMS_lumi.writeExtraText = 1
 CMS_lumi.extraText = "Preliminary"
 CMS_lumi.lumi_sqrtS = "13 TeV" # used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)
-iPos = 33
+iPos = 13
 if( iPos==0 ): CMS_lumi.relPosX = 0.12
 iPeriod = 4
 H_ref = 600;
@@ -52,12 +53,12 @@ fitNormRanges.showFitRanges()
 fitNormRanges.showNormRanges()
 rebin          = False   # Rebin from 50GeV to 100GeV
 WriteDataCards = False 
-DrawUncertainty= False 
+DrawUncertainty= True 
 #f_outlier     = null
 
 
 chi2Table          = []
-chi2Table_head     = ["Name","Exc3/Exc4","chi2","ndof","chi2/ndof","chi2full","full ndof","chi2full/ndof","integral(up)","fitResult"]
+chi2Table_head     = ["Name","Exc3/Exc4","chi2","ndof","chi2/ndof","chi2","full ndof","chi2up/ndof","integral(up)","fitResult"]
 chi2Table.append(chi2Table_head)
 
 STup = 9000
@@ -82,7 +83,7 @@ def symmetrizeFormula(f1,f2):
 def getEnvelopeFunctions(bestfit, functions, xlow, xup, mode):
     bestfit_pos = 0
     fsym_pos    = -1
-    fup_pos    = -1
+    fup_pos     = -1
     flow_pos    = -1
     #get the position of the best fit
     i=0
@@ -102,7 +103,7 @@ def getEnvelopeFunctions(bestfit, functions, xlow, xup, mode):
     diffs             = []
     SignChanged       = False
     if (mode=="symmetrize"):
-        for x in np.arange(xlow,xup+100,100):
+        for x in np.arange(xlow,xup+50,50):
             last_diffs        = diffs
             diffs             = []
             abs_diffs         = []
@@ -151,7 +152,7 @@ def getEnvelopeFunctions(bestfit, functions, xlow, xup, mode):
             fLowFormula  += rangeString +  functions[fsym_pos].GetExpFormula("p").Data()  +")"
             fUpFormula   += rangeString + symmetrizeFormula(bestfit, functions[fsym_pos]) +")"
     elif (mode=="shade"):
-        for x in np.arange(xlow,xup+100,100):
+        for x in np.arange(xlow,xup+50,50):
             last_diffs        = diffs
             diffs             = []
             abs_diffs         = []
@@ -162,8 +163,8 @@ def getEnvelopeFunctions(bestfit, functions, xlow, xup, mode):
             #print "At x= ",x
             #print "fnames = ",fnames
             #print "diffs  = ",diffs
-            iMaxDiff = diffs.index(max(diffs)) 
-            iMinDiff = diffs.index(min(diffs)) 
+            iMaxDiff = diffs.index(min(diffs)) 
+            iMinDiff = diffs.index(max(diffs)) 
 
             fUpSymRange_xup = x
             fLowSymRange_xup = x
@@ -171,12 +172,12 @@ def getEnvelopeFunctions(bestfit, functions, xlow, xup, mode):
             if((not fup_pos == iMaxDiff) or not flow_pos == iMinDiff):
                 if not(fup_pos==-1):
                     fUpRangeString = "(x>="+str(fUpSymRange_xlow)+" && x<"+str(fUpSymRange_xup)+")*("
-                    print "Maximum function changed from %s to %s at %s" % (fnames[fup_pos],fnames[iMaxDiff],x)
+                    #print "Maximum function changed from %s to %s at %s" % (fnames[fup_pos],fnames[iMaxDiff],x)
                     if(not fUpFormula=="" ): fUpFormula  += "+"
                     fUpFormula   += fUpRangeString +  functions[fup_pos].GetExpFormula("p").Data() +")"
                 if not(flow_pos==-1):
                     fLowRangeString = "(x>="+str(fLowSymRange_xlow)+" && x<"+str(fLowSymRange_xup)+")*("
-                    print "Min function changed from %s to %s at %s" % (fnames[flow_pos],fnames[iMinDiff],x)
+                    #print "Min function changed from %s to %s at %s" % (fnames[flow_pos],fnames[iMinDiff],x)
                     if(not fLowFormula=="" ): fLowFormula  += "+"
                     fLowFormula   += fLowRangeString +  functions[flow_pos].GetExpFormula("p").Data() +")"
                 #Mark the first pass
@@ -201,13 +202,33 @@ def getEnvelopeFunctions(bestfit, functions, xlow, xup, mode):
     fup  = TF1("fUp_symmetrized",fUpFormula,xlow,xup)
     return (flow,fup)
 
+# Add normalization error to fLow and fUp, return as TGraph. normErr given in fraction 
+def AddNormError(fLow,fUp,fbest, normErr):
+    fLow_norm = TGraph()
+    fUp_norm  = TGraph()
+    fUp_norm.SetName( fUp.GetName() + "_norm")
+    fLow_norm.SetName( fLow.GetName() + "_norm")
+    for x in np.arange(fUp.GetXmin(),fUp.GetXmax(),50):
+        shape_err = (fUp.Eval(x) - fbest.Eval(x))
+        norm_err  = fbest.Eval(x)* normErr
+        delta     = sqrt( norm_err**2 + shape_err**2)
+        fUp_norm.SetPoint(fUp_norm.GetN(), x, fbest.Eval(x)+delta )
+
+    for x in np.arange(fLow.GetXmin(),fLow.GetXmax(),50):
+        shape_err = (fbest.Eval(x)-fLow.Eval(x) )
+        norm_err  = fbest.Eval(x)* normErr
+        delta     = sqrt( norm_err**2 + shape_err**2)
+        fLow_norm.SetPoint(fLow_norm.GetN(), x, fbest.Eval(x)-delta )
+    return fLow_norm, fUp_norm
+    
+
 # Return the TGraph bounded by fLow and fUp for drawing
 def getFillGraph(fLow, fUp):
     g = TGraph()
     #for x in np.arange(fLow.GetXmin(),fLow.GetXmax(),130):
-    for x in np.arange(fLow.GetXmin(),fLow.GetXmax(),100):
+    for x in np.arange(fLow.GetXmin(),fLow.GetXmax(),50):
         g.SetPoint(g.GetN(), x, min(fLow.Eval(x),fUp.Eval(x)) )
-    for x in np.arange(fUp.GetXmax(),fLow.GetXmin(),-100):
+    for x in np.arange(fUp.GetXmax(),fLow.GetXmin(),-50):
         g.SetPoint(g.GetN(), x, max(fUp.Eval(x),fLow.Eval(x)) )
     return g
  
@@ -267,9 +288,9 @@ def getNormalizedFunctionWithChi2(f, hist, ExcOrInc, j, STlow=0, STup=0):
         upperNormBin_ref  = normHist.GetXaxis().FindBin(UpperNormBound)
 
     for normbin in range(lowerNormBin, upperNormBin):
-        histBinTotal+=hist.GetBinContent(normbin)
+        histBinTotal+=hist.GetBinContent(normbin)*hist.GetBinWidth(normbin)
     for normbin in range(lowerNormBin_ref, upperNormBin_ref):
-        normBinTotal+=normHist.GetBinContent(normbin)
+        normBinTotal+=normHist.GetBinContent(normbin)*normHist.GetBinWidth(normbin)
 
     #normfactor =  (normBinTotal/f.Integral(xlowedge, xupedge))*binwidth 
     normfactor =  histBinTotal/normBinTotal 
@@ -289,22 +310,23 @@ def getNormalizedFunctionWithChi2(f, hist, ExcOrInc, j, STlow=0, STup=0):
         errY    = hist.GetBinError(normbin) 
         #chi2sum += pow( (y - fNormalized.Eval(x) )/errY  ,2)
     #chi2me = chi2sum / fNormalized.GetNDF()
-    chi2  = hist.Chisquare( fNormalized ,"R")/ fNormalized.GetNDF()
+    #chi2pDOF  = hist.Chisquare( fNormalized ,"R")/ fNormalized.GetNDF()
+    chi2pDOF  = hist.Chisquare( fNormalized ,"R")
     fNormalized.SetRange(LowerNormBound, 14000)
     #print "%s   chi2 = %.3f    chi2_me = %.3f" % (fNormalized.GetName(), chi2, chi2me)
 
     #return fNormalized ,chi2me
-    return fNormalized ,chi2
+    return fNormalized ,chi2pDOF
 
-def customfit(f, Sthist, norm):
+def customfit(f, Sthist, ExcN):
     print "------------------------------------"
     print "Start fitting %s ...." % f.GetName()
     # Guide the fit with the amplitude of the refhist in the fit region
-    f.SetParameter(0, Sthist.Integral( Sthist.FindBin(fitNormRanges.getLowerFitBound(norm)), Sthist.FindBin(fitNormRanges.getUpperFitBound(norm))))
+    f.SetParameter(0, Sthist.Integral( Sthist.FindBin(fitNormRanges.getLowerFitBound(ExcN)), Sthist.FindBin(fitNormRanges.getUpperFitBound(ExcN))))
     f.SetParLimits(0, 0, 1E10)
-    for j in range(0, 30):
-        Sthist.Fit(f.GetName(), "Q0LRB", "", fitNormRanges.getLowerFitBound(norm), fitNormRanges.getUpperFitBound(norm) )
-    r = Sthist.Fit(f.GetName(), "0LRB", "", fitNormRanges.getLowerFitBound(norm), fitNormRanges.getUpperFitBound(norm) )
+    for j in range(0, 20):
+        Sthist.Fit(f.GetName(), "Q0LRB", "", fitNormRanges.getLowerFitBound(ExcN), fitNormRanges.getUpperFitBound(ExcN) )
+    r = Sthist.Fit(f.GetName(), "0LRB", "", fitNormRanges.getLowerFitBound(ExcN), fitNormRanges.getUpperFitBound(ExcN) )
     fClone = f.Clone()
     pars=[]
     for i in range(0,f.GetNpar()):
@@ -313,16 +335,25 @@ def customfit(f, Sthist, norm):
     chi2pNDF = f.GetChisquare()/ f.GetNDF()
     #Calculate chi2 for the full range with clone of f
     fClone.SetName(f.GetName()+"_fullRange")
-    fClone.SetRange(fitNormRanges.getUpperFitBound(norm),13000)
-    Sthist.Fit( fClone.GetName(), "Q0LRB", "" , fitNormRanges.getUpperFitBound(norm), 13000)
+    #fClone.SetRange(fitNormRanges.getUpperFitBound(ExcN),13000)
+    fClone.SetRange(4500,13000)
+    Sthist.Fit( fClone.GetName(), "Q0LRB", "" , 4500, 13000)
     chi2full     = Sthist.Chisquare( fClone, "R") 
-    UpperInt     = fClone.Integral( float(fitNormRanges.getUpperFitBound(norm)), 13000)
+    UpperInt     = fClone.Integral( 4500, 13000)
     ndf_full=0
-    for i in range(Sthist.FindBin(fitNormRanges.getUpperFitBound(norm)),Sthist.FindBin(13000)+1):
+    for i in range(Sthist.FindBin(4500),Sthist.FindBin(13000)+1):
         if not(Sthist.GetBinContent(i)==0):  ndf_full+=1
     ndf_full -= f.GetNpar()
     chi2fullpNDF = chi2full / ndf_full
     
+    chi2sum =0
+    #chi2chklist=[]
+    #for iBin in range( Sthist.FindBin( fitNormRanges.getLowerFitBound(ExcN)), Sthist.FindBin(fitNormRanges.getUpperFitBound(ExcN))+1):
+    #    x       = Sthist.GetBinCenter(iBin)
+    #    y       = Sthist.GetBinContent(iBin) 
+    #    errY    = Sthist.GetBinError(iBin) 
+    #    chi2sum += pow( (y - f.Eval(x) )/errY  ,2)
+    #    chi2chklist.append({"ST":x,"chi2term":pow( (y - f.Eval(x) )/errY  ,2)})
  
     if("exc3" in f.GetName()):
         fname = f.GetName().replace("_exc3","")
@@ -340,15 +371,15 @@ def customfit(f, Sthist, norm):
         chi2Table.append(chi2Table_row)
     print "Done fitting %s, result = %s, %s has parameters :"%( f.GetName(),int(r), f.GetName()) , pars
     print "Done fitting %s, %s has chi2perNDF = %.5f :"%(f.GetName(), f.GetName(), chi2pNDF)
+    #for x in chi2chklist:
+    #    print x["ST"],"%.3f"%x["chi2term"]
 
 def pickBestFit( functions, chi2_devlist):
     for f in functions:
         fname = f.GetName()
-        #if "ATLAS2_exc3" in fname:
-        if "dijet1_exc3" in fname:
+        if "ATLAS1_exc3" in fname:
             return f
-        if "dijet1_exc4" in fname:
-        #if "UA21_exc4" in fname:
+        if "ATLAS1_exc4" in fname:
             return f
     return functions[ chi2_devlist.index( min(chi2_devlist) ) ]
 def ratioplot(fbest, sthist,xlow,xup):
@@ -379,8 +410,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     upperPads[UpperPadName].cd()
     upperPads[UpperPadName].SetLogy(1)
     stHist.SetTitle("")
-    #stHist.GetYaxis().SetTitle("Events/100 GeV")
-    stHist.GetYaxis().SetTitle("Events/50 GeV")
+    stHist.GetYaxis().SetTitle("Events/%i GeV"%stHist.GetBinWidth(1))
     stHist.SetMarkerColor(kBlack)
     stHist.SetMarkerStyle(8)
     stHist.SetMarkerSize(0.7)
@@ -414,16 +444,16 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     for flist in AllFitList:
         for fname in flist:
 	    fname_norm = fname +"_norm"
-    	    fnorm,chi2      = getNormalizedFunctionWithChi2( flist[fname], stHist, ExcOrInc, j )
-    	    chi2_list.append(chi2)
-    	    chi2_devlist.append(abs(chi2-1))
+    	    fnorm,chi2pDOF      = getNormalizedFunctionWithChi2( flist[fname], stHist, ExcOrInc, j )
+    	    chi2_list.append(chi2pDOF)
+    	    chi2_devlist.append(abs(chi2pDOF-1))
             if(ExcOrInc=="Exc"):
                 if((ExcOrInc+str(j)).lower() in fname):
                     functions.append( fnorm )
             else:
         	    functions.append( fnorm )
     	    if(ExcOrInc=="Inc"):
-                chi2graphs_norm[fname].SetPoint( chi2graphs_norm[fname].GetN(), j , chi2)
+                chi2graphs_norm[fname].SetPoint( chi2graphs_norm[fname].GetN(), j , chi2pDOF)
     	    if not DrawUncertainty:
                 if (ExcOrInc=="Inc"):
                     fnorm.Draw("SAME")
@@ -437,8 +467,9 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     fbest = pickBestFit( functions, chi2_devlist )
     print "-----------------------------------------"
     print "In N=%i, fbest is chosen to be %s\n"%(j,fbest.GetName())
-    fLow,fUp  = getEnvelopeFunctions( fbest, functions, 2500, 7500, "symmetrize")
+    fLow,fUp  = getEnvelopeFunctions( fbest, functions, 2500, 7500, "shade")
     fillGraph= getFillGraph( fLow, fUp )
+    fLow_norm,fUp_norm= AddNormError( fLow, fUp, fbest, 0.1 )
     
     if DrawUncertainty:
         fillGraph.SetFillColorAlpha(kGray,0.35)
@@ -448,8 +479,19 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
         fUp.SetLineColor(kBlue)
         fUp.SetLineStyle(1)
         fUp.SetLineWidth(1)
+        fLow.SetLineColor(kCyan)
         fLow.SetLineWidth(1)
+        fLow.Draw("SAME")
         fUp.Draw("SAME")
+        fUp_norm.SetLineColor(kRed)
+        fUp_norm.SetLineStyle(1)
+        fUp_norm.SetLineWidth(1)
+        fUp_norm.Draw("LSAME")
+        fLow_norm.SetLineColor(kGreen)
+        fLow_norm.SetLineStyle(1)
+        fLow_norm.SetLineWidth(1)
+        fLow_norm.Draw("LSAME")
+
         fbest.SetLineColor(kBlue)
         fbest.SetLineStyle(1)
         fbest.SetLineWidth(2)
@@ -468,8 +510,6 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
         leg2.Draw("SAME")
 
 	fbest.Draw("SAME")
-    fLow.SetLineColor(kBlue)
-    fLow.Draw("SAME")
 
     legend = TLegend(0.6, 0.7, 0.8, 0.85,"", "brNDC")
     legend.SetTextSize(0.04);
@@ -612,8 +652,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
 
 #f1_string       ="[0]/([1]+x/13000)**[2]"                      # Cannot fit with 2500-4000
 f3_string       ="[0]/([1] + [2]*x*0.001 + (0.001*x)**2)**[3]" # Failed to fit 
-f4_string       ="([0]*(1+x/13000)^[1])/((x/13000)**([2]*TMath::Log(x/13000)))"
-f2_string       ="([0]*(1+x/13000)^[1])/((x/13000)**([2]+[3]*TMath::Log(x/13000)))"
+CMSBH1_string   ="([0]*(1+x/13000)^[1])/((x/13000)**([2]*TMath::Log(x/13000)))"
+CMSBH2_string   ="([0]*(1+x/13000)^[1])/((x/13000)**([2]+[3]*TMath::Log(x/13000)))"
 ATLAS1_string   ="([0]*(1-(x/13000)^(1/3))^[1])/((x/13000)^[2])"
 ATLAS2_string   ="([0]*(1-(x/13000)^(1/3))^[1])/((x/13000)^([2]+[3]*(TMath::Log(x/13000))^2))"
 dijet1_string   ="([0]*(1-x/13000)^[1])/((x/13000)**([2]))" 
@@ -644,14 +684,14 @@ ATLASBH6_string="([0]*(1-x/13000)^[1])*((1+x/13000)**([2]*(x/13000)))"          
 #fnames.update({"dijet2":dijet2_string,"dijet3":dijet3_string})
 #fnames.update({"exPow":exPow_string})
 fnames = {
-"f2":f2_string,
-"f4":f4_string,
+#"CMSBH1":CMSBH1_string,
+#"CMSBH2":CMSBH2_string,
 "dijet1":dijet1_string,
 "dijet2":dijet2_string,
 #"dijet3":dijet3_string,
 "ATLAS1":ATLAS1_string,
 "ATLAS2":ATLAS2_string,
-"UA21":UA21_string,
+#"UA21":UA21_string,
 "UA22":UA22_string,
 #"UA23":UA23_string,
 "dijetMod":dijetMod,
@@ -660,7 +700,7 @@ fnames = {
 "ATLASBH3":ATLASBH3_string,
 "ATLASBH4":ATLASBH4_string,
 "ATLASBH5":ATLASBH5_string,
-"ATLASBH6":ATLASBH6_string
+#"ATLASBH6":ATLASBH6_string
 }
 
 #fnames = {"VVdijet2":VVdijet2_string,"VVdijet1":VVdijet1_string}
@@ -683,19 +723,19 @@ for flist in AllFitList:
             flist[fname].SetLineColor(kBlack)
             chi2graphs_norm[fname].SetLineColor(kBlack)
             chi2graphs_fit["f1"].SetLineColor(kBlack)
-        if("f2" in fname):
+        if("CMSBH2" in fname):
             flist[fname].SetLineColor(kRed)
             chi2graphs_norm[fname].SetLineColor(kRed)
-            chi2graphs_fit["f2"].SetLineColor(kRed)
+            chi2graphs_fit["CMSBH2"].SetLineColor(kRed)
         if("f3" in fname):
             flist[fname].SetLineColor(kGreen)
             chi2graphs_norm[fname].SetLineColor(kGreen)
             chi2graphs_fit["f3"].SetLineColor(kGreen)
-        if("f4" in fname):
+        if("CMSBH1" in fname):
             flist[fname].SetLineColor(kRed)
             flist[fname].SetLineWidth(3)
             chi2graphs_norm[fname].SetLineColor(kRed)
-            chi2graphs_fit["f4"].SetLineColor(kRed)
+            chi2graphs_fit["CMSBH1"].SetLineColor(kRed)
         if("dijet1" in fname):
             flist[fname].SetLineColor(kOrange)
             chi2graphs_norm[fname].SetLineColor(kOrange)
@@ -793,9 +833,9 @@ stExc4Hist =PlotsDir.Get(histname04)
 for flist in AllFitList:
     for fname in sorted(flist.iterkeys()):
         if("f1"       in fname):  flist[fname].SetParameters(1, 0.3,     1)
-        if("f2"       in fname):  flist[fname].SetParameters(1, -27,   1.9,  -0.48)
+        if("CMSBH2"   in fname):  flist[fname].SetParameters(1, -27,   1.9,  -0.48)
         if("f3"       in fname):  flist[fname].SetParameters(1, 0.4,  -0.1,      4)
-        if("f4"       in fname):  flist[fname].SetParameters(1, -31,  -0.8)
+        if("CMSBH1"   in fname):  flist[fname].SetParameters(1, -31,  -0.8)
         if("dijet1"   in fname):  flist[fname].SetParameters(1,   9,     3,   -0.9)
         if("dijet2"   in fname):  flist[fname].SetParameters(1,  10,     3,   -0.7)
         if("dijet3"   in fname):  flist[fname].SetParameters(1,  15,     3,   2)
@@ -868,6 +908,8 @@ for j in range(2,12):
         stExc3Hist.Rebin()
         stExcHist.Rebin()
         stIncHist.Rebin()
+    if j>6:
+        stIncHist.Rebin()
     #if j==2:
     #    NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,stExc2Hist,True)
     if j==3:
@@ -883,16 +925,27 @@ for j in range(2,12):
 c1= TCanvas("chi2graph","Chi2 vs N", 800,600)
 OutFile.Append(c1)
 
+chi2norm=[]
+chi2norm.append(["Inclusive multiplicity","chi2 after normalization"])
+
 leg = TLegend(0.7,0.7,0.9,0.9)
 chi2graphs_norm[chi2graphs_norm.keys()[0]].Draw()
 for gname in chi2graphs_norm:
    print "now drawing chi2 graphs %s"%gname
    chi2graphs_norm[gname].Draw("SAME")
    leg.AddEntry(chi2graphs_norm[gname],gname,"L")
-chi2graphs_norm[chi2graphs_norm.keys()[0]].SetTitle("Chi2/Ndof for different fit functions at normalization")
+
+for i in range(chi2graphs_norm["ATLAS1_exc3"].GetN()):
+    x=Double(0.0)
+    y=Double(0.0)
+    chi2graphs_norm["ATLAS1_exc3"].GetPoint(i,x,y)
+    print x,y
+    
+
+chi2graphs_norm[chi2graphs_norm.keys()[0]].SetTitle("Chi2/Ndof for different fit functions after normalization")
 chi2graphs_norm[chi2graphs_norm.keys()[0]].GetXaxis().SetTitle("Inclusive Multiplicity")
 chi2graphs_norm[chi2graphs_norm.keys()[0]].GetYaxis().SetTitle("Chi2/Ndof")
-chi2graphs_norm[chi2graphs_norm.keys()[0]].GetYaxis().SetRangeUser(0,5)
+chi2graphs_norm[chi2graphs_norm.keys()[0]].GetYaxis().SetRangeUser(0,1)
 leg.SetFillStyle(1001);
 leg.SetFillColor(0);
 leg.Draw()
@@ -903,8 +956,8 @@ leg.Clear()
 c1.SetName("chi2graph_fit")
 chi2graphs_fit[chi2graphs_fit.keys()[0]].Draw()
 
-for gname in chi2graphs_fit:
-   print "now drawing chi2 graphs %s"%gname
+#for gname in chi2graphs_fit:
+   #print "now drawing chi2 graphs %s"%gname
 chi2graphs_fit[chi2graphs_fit.keys()[0]].GetXaxis().SetTitle("Exclusive Multiplicity")
 chi2graphs_fit[chi2graphs_fit.keys()[0]].GetYaxis().SetTitle("Chi2/Ndof")
 chi2graphs_fit[chi2graphs_fit.keys()[0]].GetYaxis().SetRangeUser(0,2)
