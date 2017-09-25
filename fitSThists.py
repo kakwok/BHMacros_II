@@ -239,12 +239,15 @@ def getRatioFillGraph(fLow, fUp, fbest):
     gbest=TGraph()
     gFill=TGraph()
     for x in np.arange(fLow.GetXmin(),fLow.GetXmax(),50):
-        gFill.SetPoint(gFill.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
-        gDown.SetPoint(gDown.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
-        gbest.SetPoint(gbest.GetN(), x, 0)
+        if(not fbest.Eval(x)==0):
+            gFill.SetPoint(gFill.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
+            gDown.SetPoint(gDown.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
+            gbest.SetPoint(gbest.GetN(), x, 0)
     for x in np.arange(fUp.GetXmax(),fUp.GetXmin(),-50):
-        gFill.SetPoint(gFill.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
-        gUp.SetPoint(  gUp.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
+        if(not fbest.Eval(x)==0):
+            gFill.SetPoint(gFill.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
+            gFill.SetPoint(gFill.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
+            gUp.SetPoint(  gUp.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
     gDict={"gUp":gUp,"gDown":gDown,"gFill":gFill,"gbest":gbest}
     return gDict
 
@@ -312,7 +315,7 @@ def getNormalizedFunctionWithChi2(f, hist, ExcOrInc, j, STlow=0, STup=0):
     #chi2me = chi2sum / fNormalized.GetNDF()
     #chi2pDOF  = hist.Chisquare( fNormalized ,"R")/ fNormalized.GetNDF()
     chi2pDOF  = hist.Chisquare( fNormalized ,"R")
-    fNormalized.SetRange(LowerNormBound, 14000)
+    fNormalized.SetRange(LowerNormBound, 13000)
     #print "%s   chi2 = %.3f    chi2_me = %.3f" % (fNormalized.GetName(), chi2, chi2me)
 
     #return fNormalized ,chi2me
@@ -323,7 +326,7 @@ def customfit(f, Sthist, ExcN):
     print "Start fitting %s ...." % f.GetName()
     # Guide the fit with the amplitude of the refhist in the fit region
     f.SetParameter(0, Sthist.Integral( Sthist.FindBin(fitNormRanges.getLowerFitBound(ExcN)), Sthist.FindBin(fitNormRanges.getUpperFitBound(ExcN))))
-    f.SetParLimits(0, 0, 1E10)
+    f.SetParLimits(0, 0, 1E9)
     for j in range(0, 20):
         Sthist.Fit(f.GetName(), "Q0LRB", "", fitNormRanges.getLowerFitBound(ExcN), fitNormRanges.getUpperFitBound(ExcN) )
     r = Sthist.Fit(f.GetName(), "0LRB", "", fitNormRanges.getLowerFitBound(ExcN), fitNormRanges.getUpperFitBound(ExcN) )
@@ -696,8 +699,8 @@ fnames = {
 #"UA23":UA23_string,
 "dijetMod":dijetMod,
 "ATLASBH1":ATLASBH1_string,
-"ATLASBH2":ATLASBH2_string,
-"ATLASBH3":ATLASBH3_string,
+#"ATLASBH2":ATLASBH2_string,
+#"ATLASBH3":ATLASBH3_string,
 "ATLASBH4":ATLASBH4_string,
 "ATLASBH5":ATLASBH5_string,
 #"ATLASBH6":ATLASBH6_string
