@@ -60,6 +60,10 @@ DrawUncertainty= True
 chi2Table          = []
 chi2Table_head     = ["Name","Exc3/Exc4","chi2","ndof","chi2/ndof","chi2","full ndof","chi2up/ndof","integral(up)","fitResult"]
 chi2Table.append(chi2Table_head)
+NormTable          = []
+NormTable_j        = []
+NormTable_head     = ["Multiplicity","region[TeV]","factor"]
+NormTable.append(NormTable_head)
 
 STup = 9000
 def getratio(f1,f2):
@@ -297,6 +301,11 @@ def getNormalizedFunctionWithChi2(f, hist, ExcOrInc, j, STlow=0, STup=0):
 
     #normfactor =  (normBinTotal/f.Integral(xlowedge, xupedge))*binwidth 
     normfactor =  histBinTotal/normBinTotal 
+    FracNormErr    = sqrt(1.0/sqrt(histBinTotal)+1.0/sqrt(normBinTotal))
+    NormErr        = FracNormErr * normfactor 
+    if(ExcOrInc=="Inc" and not(j in NormTable_j)):
+        NormTable.append([">=%s"%j,"%s-%s"%(LowerNormBound/1000,UpperNormBound/1000),"%.3f+-%.3f"%(normfactor,NormErr)])
+        NormTable_j.append(j)
     if debug:
         print " The normfactor for %s is %.3f  | bin sum(numerator)=%s bin sum(denorminator) = %s" % ( f.GetName(), normfactor, histBinTotal, normBinTotal )
     fNormalized = f.Clone()
@@ -934,15 +943,15 @@ chi2norm.append(["Inclusive multiplicity","chi2 after normalization"])
 leg = TLegend(0.7,0.7,0.9,0.9)
 chi2graphs_norm[chi2graphs_norm.keys()[0]].Draw()
 for gname in chi2graphs_norm:
-   print "now drawing chi2 graphs %s"%gname
+#   print "now drawing chi2 graphs %s"%gname
    chi2graphs_norm[gname].Draw("SAME")
    leg.AddEntry(chi2graphs_norm[gname],gname,"L")
 
-for i in range(chi2graphs_norm["ATLAS1_exc3"].GetN()):
-    x=Double(0.0)
-    y=Double(0.0)
-    chi2graphs_norm["ATLAS1_exc3"].GetPoint(i,x,y)
-    print x,y
+#for i in range(chi2graphs_norm["ATLAS1_exc3"].GetN()):
+#    x=Double(0.0)
+#    y=Double(0.0)
+#    chi2graphs_norm["ATLAS1_exc3"].GetPoint(i,x,y)
+#    print x,y
     
 
 chi2graphs_norm[chi2graphs_norm.keys()[0]].SetTitle("Chi2/Ndof for different fit functions after normalization")
@@ -968,7 +977,8 @@ leg.SetFillStyle(1001);
 leg.SetFillColor(0);
 leg.Draw()
 print tabulate(chi2Table,"firstrow")
-print "{} {}".format(np.median(np.array(f_integrals)), np.median(np.array(f_chi2)))
+print tabulate(NormTable,"firstrow")
+#print "{} {}".format(np.median(np.array(f_integrals)), np.median(np.array(f_chi2)))
 #for row in chi2Table:
 #    print row
 c1.Write()
