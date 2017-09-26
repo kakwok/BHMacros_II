@@ -52,7 +52,7 @@ fitNormRanges = FitAndNormRange(argv[3])
 fitNormRanges.showFitRanges()
 fitNormRanges.showNormRanges()
 rebin          = False   # Rebin from 50GeV to 100GeV
-WriteDataCards = False 
+WriteDataCards = True 
 DrawUncertainty= True 
 #f_outlier     = null
 
@@ -206,8 +206,8 @@ def getEnvelopeFunctions(bestfit, functions, xlow, xup, mode):
     fup  = TF1("fUp_symmetrized",fUpFormula,xlow,xup)
     return (flow,fup)
 
-# Add normalization error to fLow and fUp, return as TGraph. normErr given in fraction 
-def AddNormError(fLow,fUp,fbest, normErr):
+# Add normalization error to fLow and fUp, return as TGraph. normErr given in fraction.
+def getNormErrorGraphs(fLow,fUp,fbest, normErr,RelOrAbs):
     fLow_norm = TGraph()
     fUp_norm  = TGraph()
     fUp_norm.SetName( fUp.GetName() + "_norm")
@@ -216,32 +216,41 @@ def AddNormError(fLow,fUp,fbest, normErr):
         shape_err = (fUp.Eval(x) - fbest.Eval(x))
         norm_err  = fbest.Eval(x)* normErr
         delta     = sqrt( norm_err**2 + shape_err**2)
-        fUp_norm.SetPoint(fUp_norm.GetN(), x, fbest.Eval(x)+delta )
+        if RelOrAbs=="Abs":
+            fUp_norm.SetPoint(fUp_norm.GetN(), x, fbest.Eval(x)+delta )
+        elif RelOrAbs=="Rel":
+            fUp_norm.SetPoint(fUp_norm.GetN(), x, delta/fbest.Eval(x) )
 
     for x in np.arange(fLow.GetXmin(),fLow.GetXmax(),50):
         shape_err = (fbest.Eval(x)-fLow.Eval(x) )
         norm_err  = fbest.Eval(x)* normErr
         delta     = sqrt( norm_err**2 + shape_err**2)
-        fLow_norm.SetPoint(fLow_norm.GetN(), x, fbest.Eval(x)-delta )
+        if RelOrAbs=="Abs":
+            fLow_norm.SetPoint(fLow_norm.GetN(), x, fbest.Eval(x)-delta )
+        elif RelOrAbs=="Rel":
+            fLow_norm.SetPoint(fLow_norm.GetN(), x, -1*delta/fbest.Eval(x) )
     return fLow_norm, fUp_norm
-    
 
 # Return the TGraph bounded by fLow and fUp for drawing
 def getFillGraph(fLow, fUp):
     g = TGraph()
-    #for x in np.arange(fLow.GetXmin(),fLow.GetXmax(),130):
     for x in np.arange(fLow.GetXmin(),fLow.GetXmax(),50):
         g.SetPoint(g.GetN(), x, min(fLow.Eval(x),fUp.Eval(x)) )
-    for x in np.arange(fUp.GetXmax(),fLow.GetXmin(),-50):
+    for x in np.arange(fUp.GetXmax(),fUp.GetXmin(),-50):
         g.SetPoint(g.GetN(), x, max(fUp.Eval(x),fLow.Eval(x)) )
     return g
- 
+
 # Return the TGraph bounded by fLow, fUp and normalized by fbest for drawing
-def getRatioFillGraph(fLow, fUp, fbest):
+def getRatioFillGraph(fLow, fUp, fbest, normErr):
     gUp = TGraph()
     gDown=TGraph()
     gbest=TGraph()
     gFill=TGraph()
+    
+    #Graphs with shape + normalization errors
+    gUp_norm  =TGraph()
+    gDown_norm=TGraph()
+    gDown_norm, gUp_norm = getNormErrorGraphs(fLow,fUp,fbest,normErr,"Rel")
     for x in np.arange(fLow.GetXmin(),fLow.GetXmax(),50):
         if(not fbest.Eval(x)==0):
             gFill.SetPoint(gFill.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
@@ -249,10 +258,9 @@ def getRatioFillGraph(fLow, fUp, fbest):
             gbest.SetPoint(gbest.GetN(), x, 0)
     for x in np.arange(fUp.GetXmax(),fUp.GetXmin(),-50):
         if(not fbest.Eval(x)==0):
-            gFill.SetPoint(gFill.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
             gFill.SetPoint(gFill.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
             gUp.SetPoint(  gUp.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
-    gDict={"gUp":gUp,"gDown":gDown,"gFill":gFill,"gbest":gbest}
+    gDict={"gUp":gUp,"gDown":gDown,"gFill":gFill,"gbest":gbest,"gUp_norm":gUp_norm,"gDown_norm":gDown_norm}
     return gDict
 
 # Return the mean value of bin content
@@ -480,8 +488,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     print "-----------------------------------------"
     print "In N=%i, fbest is chosen to be %s\n"%(j,fbest.GetName())
     fLow,fUp  = getEnvelopeFunctions( fbest, functions, 2500, 7500, "shade")
-    fillGraph= getFillGraph( fLow, fUp )
-    fLow_norm,fUp_norm= AddNormError( fLow, fUp, fbest, 0.1 )
+    fillGraph = getFillGraph( fLow, fUp )
+    fLow_norm,fUp_norm= getNormErrorGraphs( fLow, fUp, fbest, 0.1 ,"Abs")
     
     if DrawUncertainty:
         fillGraph.SetFillColorAlpha(kGray,0.35)
@@ -491,7 +499,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
         fUp.SetLineColor(kBlue)
         fUp.SetLineStyle(1)
         fUp.SetLineWidth(1)
-        fLow.SetLineColor(kCyan)
+        fLow.SetLineColor(kBlue)
         fLow.SetLineWidth(1)
         fLow.Draw("SAME")
         fUp.Draw("SAME")
@@ -499,7 +507,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
         fUp_norm.SetLineStyle(1)
         fUp_norm.SetLineWidth(1)
         fUp_norm.Draw("LSAME")
-        fLow_norm.SetLineColor(kGreen)
+        fLow_norm.SetLineColor(kRed)
         fLow_norm.SetLineStyle(1)
         fLow_norm.SetLineWidth(1)
         fLow_norm.Draw("LSAME")
@@ -541,6 +549,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
             legend.AddEntry(stHist,"Data: multiplicity >=%i"%j,"ep");
     if DrawUncertainty:
 	    legend.AddEntry(fillGraph,"Background from fit","fl");
+	    legend.AddEntry(fLow_norm,"Normalization uncertainty","ep");
     legend.Draw()
 
     #CMS_lumi.CMS_lumi(STcomparisons[canvasName], iPeriod, iPos)
@@ -594,7 +603,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
 
     #Draw Fit uncertainty
     if DrawUncertainty:
-    	RatioFillGraphs = getRatioFillGraph( fLow, fUp, fbest )
+    	RatioFillGraphs = getRatioFillGraph( fLow, fUp, fbest ,0.1)
     	RatioFillGraphs["gFill"].SetFillColorAlpha(kGray,0.35)
     	RatioFillGraphs["gFill"].Draw("sameF")
     	RatioFillGraphs["gUp"].SetLineColor(kBlue)
@@ -603,6 +612,10 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     	RatioFillGraphs["gDown"].Draw("sameC")
     	RatioFillGraphs["gbest"].SetLineColor(kBlack)
     	RatioFillGraphs["gbest"].Draw("sameC")
+    	RatioFillGraphs["gUp_norm"].SetLineColor(kRed)
+    	RatioFillGraphs["gUp_norm"].Draw("sameC")
+    	RatioFillGraphs["gDown_norm"].SetLineColor(kRed)
+    	RatioFillGraphs["gDown_norm"].Draw("sameC")
     	stExcRatio.Draw("sameEP")
     else:
         fpulls = []
@@ -624,22 +637,14 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     if (WriteDataCards and ExcOrInc=="Inc"):
         outputForLimits = open("output/%s_Inclusive%i.txt"%(argv[2].replace(".root",""),j), "w")
         outputForLimits.write(" STMin    ::   Observed Data   ::   Expected Bkg   ::  Shape Unc  \n")
-        for stmin in range(20, 90):
+        for stmin in range(25, 90):
             observed=0
             startbin=stHist.GetXaxis().FindBin(float(stmin*100))
             for stbin in range (startbin, stHist.GetXaxis().GetNbins()):
                 observed+=stHist.GetBinContent(stbin)
-            expected = fbest.Integral(stmin*100, 14000)/binwidth
-            #expected = fbest.Integral(stmin*100, 9999999)/100
-                    #expected = f2Normalized.Integral(stmin*100, 9999999)/100
-            shapeUnc = abs(fLow.Integral(stmin*100, 14000)/binwidth-expected)/expected +1
-                    #shapeUnc = abs(fLow.Integral(stmin*100, 999999)/100-expected)/expected +1
-                    #shapeUnc = abs(f1Normalized.Integral(stmin*100, 999999)/100-expected)/expected +1
-                    #max(abs(f2Normalized.Integral(stmin*100, 999999)/100-expected),  #the 100's here are the bin width in GeV
-                    #abs(f3Normalized.Integral(stmin*100, 999999)/100-expected)
-                    #abs(f2_exc3Normalized.Integral(stmin*100, 999999)/100-expected),
-                    #abs(f3_exc3Normalized.Integral(stmin*100, 999999)/100-expected)
-                    #) /expected + 1
+            expected = fbest.Integral(stmin*100, 11000)/binwidth
+            shapeUnc = abs(fLow.Integral(stmin*100, 11000)/binwidth-expected)/expected +1
+            #print stmin*100, shapeUnc, expected
             if not ((j>5 and stmin<23) or (j>8 and stmin<25) or (j>10 and stmin<26)):
                 outputForLimits.write("%i :: %i :: %f :: %f\n" % (stmin*100, observed, expected, shapeUnc))
         outputForLimits.close()
@@ -696,23 +701,23 @@ ATLASBH6_string="([0]*(1-x/13000)^[1])*((1+x/13000)**([2]*(x/13000)))"          
 #fnames.update({"dijet2":dijet2_string,"dijet3":dijet3_string})
 #fnames.update({"exPow":exPow_string})
 fnames = {
-#"CMSBH1":CMSBH1_string,
-#"CMSBH2":CMSBH2_string,
+"CMSBH1":CMSBH1_string,
+"CMSBH2":CMSBH2_string,
 "dijet1":dijet1_string,
 "dijet2":dijet2_string,
 #"dijet3":dijet3_string,
 "ATLAS1":ATLAS1_string,
 "ATLAS2":ATLAS2_string,
-#"UA21":UA21_string,
+"UA21":UA21_string,
 "UA22":UA22_string,
 #"UA23":UA23_string,
-"dijetMod":dijetMod,
+#"dijetMod":dijetMod,
 "ATLASBH1":ATLASBH1_string,
-#"ATLASBH2":ATLASBH2_string,
-#"ATLASBH3":ATLASBH3_string,
+"ATLASBH2":ATLASBH2_string,
+"ATLASBH3":ATLASBH3_string,
 "ATLASBH4":ATLASBH4_string,
 "ATLASBH5":ATLASBH5_string,
-#"ATLASBH6":ATLASBH6_string
+"ATLASBH6":ATLASBH6_string
 }
 
 #fnames = {"VVdijet2":VVdijet2_string,"VVdijet1":VVdijet1_string}
