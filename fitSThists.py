@@ -62,8 +62,11 @@ chi2Table_head     = ["Name","Exc3/Exc4","chi2","ndof","chi2/ndof","chi2","full 
 chi2Table.append(chi2Table_head)
 NormTable          = []
 NormTable_j        = []
-NormTable_head     = ["Multiplicity","region[TeV]","factor"]
+NormTable_head     = ["Multiplicity","region[TeV]","factor","percentage"]
 NormTable.append(NormTable_head)
+#Dict{"IncN":factor}
+NormFactors         = {}
+FracNormErrors      = {}
 
 STup = 9000
 def getratio(f1,f2):
@@ -312,7 +315,9 @@ def getNormalizedFunctionWithChi2(f, hist, ExcOrInc, j, STlow=0, STup=0):
     FracNormErr    = sqrt(1.0/sqrt(histBinTotal)+1.0/sqrt(normBinTotal))
     NormErr        = FracNormErr * normfactor 
     if(ExcOrInc=="Inc" and not(j in NormTable_j)):
-        NormTable.append([">=%s"%j,"%s-%s"%(LowerNormBound/1000,UpperNormBound/1000),"%.3f+-%.3f"%(normfactor,NormErr)])
+        NormTable.append([">=%s"%j,"%s-%s"%(LowerNormBound/1000,UpperNormBound/1000),"%.3f+-%.3f"%(normfactor,NormErr),"%.3f"%(FracNormErr*100)+"%"])
+        NormFactors["Inc%s"%j]    = normfactor
+        FracNormErrors["Inc%s"%j] = FracNormErr 
         NormTable_j.append(j)
     if debug:
         print " The normfactor for %s is %.3f  | bin sum(numerator)=%s bin sum(denorminator) = %s" % ( f.GetName(), normfactor, histBinTotal, normBinTotal )
@@ -359,7 +364,7 @@ def customfit(f, Sthist, ExcN):
     fClone.SetRange(4500,13000)
     Sthist.Fit( fClone.GetName(), "Q0LRB", "" , 4500, 13000)
     chi2full     = Sthist.Chisquare( fClone, "R") 
-    UpperInt     = fClone.Integral( 4500, 13000)
+    UpperInt     = fClone.Integral( 5000, 7000)
     ndf_full=0
     for i in range(Sthist.FindBin(4500),Sthist.FindBin(13000)+1):
         if not(Sthist.GetBinContent(i)==0):  ndf_full+=1
@@ -397,9 +402,9 @@ def customfit(f, Sthist, ExcN):
 def pickBestFit( functions, chi2_devlist):
     for f in functions:
         fname = f.GetName()
-        if "ATLAS1_exc3" in fname:
+        if "ATLASBH4_exc3" in fname:
             return f
-        if "ATLAS1_exc4" in fname:
+        if "ATLASBH4_exc4" in fname:
             return f
     return functions[ chi2_devlist.index( min(chi2_devlist) ) ]
 def ratioplot(fbest, sthist,xlow,xup):
@@ -487,9 +492,14 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     fbest = pickBestFit( functions, chi2_devlist )
     print "-----------------------------------------"
     print "In N=%i, fbest is chosen to be %s\n"%(j,fbest.GetName())
+
     fLow,fUp  = getEnvelopeFunctions( fbest, functions, 2500, 7500, "shade")
     fillGraph = getFillGraph( fLow, fUp )
-    fLow_norm,fUp_norm= getNormErrorGraphs( fLow, fUp, fbest, 0.1 ,"Abs")
+    if (ExcOrInc=="Exc"):
+        fLow_norm,fUp_norm= getNormErrorGraphs( fLow, fUp, fbest, 0 ,"Abs")
+    if (ExcOrInc=="Inc"):
+        print "In N=%i, fractional errors to be %s\n"%(j,FracNormErrors["Inc%s"%j])
+        fLow_norm,fUp_norm= getNormErrorGraphs( fLow, fUp, fbest, FracNormErrors["Inc%s"%j] ,"Abs")
     
     if DrawUncertainty:
         fillGraph.SetFillColorAlpha(kGray,0.35)
@@ -549,7 +559,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
             legend.AddEntry(stHist,"Data: multiplicity >=%i"%j,"ep");
     if DrawUncertainty:
 	    legend.AddEntry(fillGraph,"Background from fit","fl");
-	    legend.AddEntry(fLow_norm,"Normalization uncertainty","ep");
+	    legend.AddEntry(fLow_norm,"Normalization uncertainty","l");
     legend.Draw()
 
     #CMS_lumi.CMS_lumi(STcomparisons[canvasName], iPeriod, iPos)
@@ -603,7 +613,10 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
 
     #Draw Fit uncertainty
     if DrawUncertainty:
-    	RatioFillGraphs = getRatioFillGraph( fLow, fUp, fbest ,0.1)
+        if(ExcOrInc=="Exc"):
+        	RatioFillGraphs = getRatioFillGraph( fLow, fUp, fbest ,0)
+        if(ExcOrInc=="Inc"):
+        	RatioFillGraphs = getRatioFillGraph( fLow, fUp, fbest ,FracNormErrors["Inc%s"%j])
     	RatioFillGraphs["gFill"].SetFillColorAlpha(kGray,0.35)
     	RatioFillGraphs["gFill"].Draw("sameF")
     	RatioFillGraphs["gUp"].SetLineColor(kBlue)
@@ -636,7 +649,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
 
     if (WriteDataCards and ExcOrInc=="Inc"):
         outputForLimits = open("output/%s_Inclusive%i.txt"%(argv[2].replace(".root",""),j), "w")
-        outputForLimits.write(" STMin    ::   Observed Data   ::   Expected Bkg   ::  Shape Unc  \n")
+        outputForLimits.write("STMin::Observed_Data::Expected_Bkg::Shape_Unc\n")
         for stmin in range(25, 90):
             observed=0
             startbin=stHist.GetXaxis().FindBin(float(stmin*100))
@@ -646,7 +659,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
             shapeUnc = abs(fLow.Integral(stmin*100, 11000)/binwidth-expected)/expected +1
             #print stmin*100, shapeUnc, expected
             if not ((j>5 and stmin<23) or (j>8 and stmin<25) or (j>10 and stmin<26)):
-                outputForLimits.write("%i :: %i :: %f :: %f\n" % (stmin*100, observed, expected, shapeUnc))
+                outputForLimits.write("%i  %i  %f  %f\n" % (stmin*100, observed, expected, shapeUnc))
         outputForLimits.close()
 
 
@@ -983,7 +996,8 @@ leg.SetFillColor(0);
 leg.Draw()
 print tabulate(chi2Table,"firstrow")
 print tabulate(NormTable,"firstrow")
-#print "{} {}".format(np.median(np.array(f_integrals)), np.median(np.array(f_chi2)))
+print "median_integral={} mean_integral={}".format(np.median(np.array(f_integrals)), np.mean(np.array(f_integrals)))
+print np.sort(np.array(f_integrals))
 #for row in chi2Table:
 #    print row
 c1.Write()
