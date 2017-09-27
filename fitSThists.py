@@ -44,7 +44,7 @@ PlotsFile = TFile(argv[1])
 PlotsDir = PlotsFile.Get("ST")
 #PlotsDir = PlotsFile.Get("ST_tight")
 OutFile = TFile("output/%s"%argv[2], "RECREATE")
-f_integrals = []
+f_integrals = {}
 f_chi2 =[] 
 chi2graphs_norm   = {}
 chi2graphs_fit    = {}
@@ -314,7 +314,7 @@ def getNormalizedFunctionWithChi2(f, hist, ExcOrInc, j, STlow=0, STup=0):
     normfactor =  histBinTotal/normBinTotal 
     FracNormErr    = sqrt(1.0/sqrt(histBinTotal)+1.0/sqrt(normBinTotal))
     NormErr        = FracNormErr * normfactor 
-    if(ExcOrInc=="Inc" and not(j in NormTable_j)):
+    if(ExcOrInc=="Inc" and not(j in NormTable_j) and ("exc3" in f.GetName())):
         NormTable.append([">=%s"%j,"%s-%s"%(LowerNormBound/1000,UpperNormBound/1000),"%.3f+-%.3f"%(normfactor,NormErr),"%.3f"%(FracNormErr*100)+"%"])
         NormFactors["Inc%s"%j]    = normfactor
         FracNormErrors["Inc%s"%j] = FracNormErr 
@@ -383,7 +383,8 @@ def customfit(f, Sthist, ExcN):
     if("exc3" in f.GetName()):
         fname = f.GetName().replace("_exc3","")
         chi2graphs_fit[fname].SetPoint( chi2graphs_fit[fname].GetN(), 3, chi2pNDF)
-        f_integrals.append( UpperInt)
+        #f_integrals.append( UpperInt)
+        f_integrals[fname] = UpperInt
         f_chi2.append( chi2full)
         chi2Table_row = [fname,"3", "%.3f"%(f.GetChisquare()),f.GetNDF(), "%.3f"%chi2pNDF,"%.3f"%chi2full, ndf_full, "%.3f"%chi2fullpNDF ,"%.3f"%UpperInt  ,int(r)]
         chi2Table.append(chi2Table_row)
@@ -399,14 +400,36 @@ def customfit(f, Sthist, ExcN):
     #for x in chi2chklist:
     #    print x["ST"],"%.3f"%x["chi2term"]
 
-def pickBestFit( functions, chi2_devlist):
+# fdict = {fname:integral}
+# return fname of best 
+def PickBestFit(fdict):
+    #1) find median and mean
+    fvalues = np.array(fdict.values())
+    mean    = np.mean(fvalues)
+    median  = np.median(fvalues)
+    np.sort(fvalues)
+    print fvalues
+    print fdict
+    fbestValue = 0
+    # pick the value of closst to median-mean
+    for f in fvalues:
+        if (f-median)>(-1*mean):
+            fbestValue = f
+            break
+    for fname in fdict:
+        if fdict[fname]==fbestValue: fbestName = fname
+    return fbestName
+    
+def setBestFit(functions):
     for f in functions:
         fname = f.GetName()
-        if "ATLASBH4_exc3" in fname:
+        if fbestName in fname:
             return f
-        if "ATLASBH4_exc4" in fname:
-            return f
-    return functions[ chi2_devlist.index( min(chi2_devlist) ) ]
+        #if "ATLASBH4_exc3" in fname:
+        #    return f
+        #if "ATLASBH4_exc4" in fname:
+        #    return f
+    #return functions[ chi2_devlist.index( min(chi2_devlist) ) ]
 def ratioplot(fbest, sthist,xlow,xup):
     h = sthist.Clone("h_ratio")
  
@@ -489,7 +512,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     #fLow     = getSymmetrizedFunction( fbest, functions, upperNormEdge, 14000)
     #fbest    = f2_norm_list["f2_norm"]
     #fbest     = functions[ chi2_devlist.index( min(chi2_devlist) ) ]
-    fbest = pickBestFit( functions, chi2_devlist )
+    #fbest = pickBestFit( functions, chi2_devlist )
+    fbest = setBestFit( functions )
     print "-----------------------------------------"
     print "In N=%i, fbest is chosen to be %s\n"%(j,fbest.GetName())
 
@@ -893,9 +917,7 @@ for flist in AllFitList:
             chi2graphs_norm[fname].SetLineStyle(3)
             customfit( flist[fname], refhist,"exc4")
 
-#    print "Printing list of chi2"
-#for j in range(0,len(Chi2List)):
-#	print Chi2List[j]
+fbestName = PickBestFit(f_integrals)
 print "The minimum chi2 is %s %.3f" % (Chi2List.index(min(Chi2List)),min(Chi2List))
 
 for j in range(2,12):
@@ -996,8 +1018,8 @@ leg.SetFillColor(0);
 leg.Draw()
 print tabulate(chi2Table,"firstrow")
 print tabulate(NormTable,"firstrow")
-print "median_integral={} mean_integral={}".format(np.median(np.array(f_integrals)), np.mean(np.array(f_integrals)))
-print np.sort(np.array(f_integrals))
+print "median_integral={} mean_integral={}".format(np.median(np.array(f_integrals.values())), np.mean(np.array(f_integrals.values())))
+print np.sort(np.array(f_integrals.values()))
 #for row in chi2Table:
 #    print row
 c1.Write()
