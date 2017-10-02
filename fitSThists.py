@@ -52,8 +52,8 @@ fitNormRanges = FitAndNormRange(argv[3])
 fitNormRanges.showFitRanges()
 fitNormRanges.showNormRanges()
 rebin          = False   # Rebin from 50GeV to 100GeV
-WriteDataCards = False 
-DrawUncertainty= True 
+WriteDataCards = False
+DrawUncertainty= False 
 #f_outlier     = null
 
 
@@ -706,12 +706,15 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
             #shapeUnc = abs(fUp.Integral(stmin*100, 11000)/binwidth-expected)/expected +1
 
             #format for datacard for using asymmetric log-normal
-            shapeNormUncLow = (GraphIntegrate(fLow_norm,stmin*100, 11000,(11000-stmin*100)/50)/binwidth) /expected 
-            shapeNormUncUp  = (GraphIntegrate(fUp_norm,stmin*100, 11000,(11000-stmin*100)/50)/binwidth)  /expected
+            #shapeUncLow = (GraphIntegrate(fLow_norm,stmin*100, 11000,(11000-stmin*100)/50)/binwidth) /expected 
+            #shapeUncUp  = (GraphIntegrate(fUp_norm,stmin*100, 11000,(11000-stmin*100)/50)/binwidth)  /expected
+            shapeUncLow = (fLow.Integral(stmin*100, 11000)/binwidth)/expected 
+            shapeUncUp  = (fUp.Integral(stmin*100, 11000)/binwidth)/expected 
+            Norm_Unc    = FracNormErrors["Inc%s"%j] +1
             #print stmin*100, shapeUnc, shapeNormUncLow, expected
             #print stmin*100, fLow.Eval(stmin*100), fLow_norm.Eval(stmin*100)
             if not ((j>5 and stmin<23) or (j>8 and stmin<25) or (j>10 and stmin<26)):
-                outputForLimits.write("%i  %i  %f  %f %f\n" % (stmin*100, observed, expected, shapeNormUncLow, shapeNormUncUp))
+                outputForLimits.write("%i  %i  %f  %f %f %f\n" % (stmin*100, observed, expected, shapeUncLow, shapeUncUp, Norm_Unc))
         outputForLimits.close()
 
 
@@ -760,23 +763,23 @@ ATLASBH6_string="([0]*(1-x/13000)^[1])*((1+x/13000)**([2]*(x/13000)))"          
 # Define dictionaries of functions for fitting different histograms
 if("QCD" in PlotsFname):
     fnames = {
-        #"CMSBH1":CMSBH1_string,
-        #"CMSBH2":CMSBH2_string,
+        "CMSBH1":CMSBH1_string,
+        "CMSBH2":CMSBH2_string,
         "dijet1":dijet1_string,
         "dijet2":dijet2_string,
         #"dijet3":dijet3_string,
         "ATLAS1":ATLAS1_string,
         "ATLAS2":ATLAS2_string,
-        #"UA21":UA21_string,
+        "UA21":UA21_string,
         "UA22":UA22_string,
         #"UA23":UA23_string,
-        #"dijetMod":dijetMod,
+        "dijetMod":dijetMod,
         "ATLASBH1":ATLASBH1_string,
-        #"ATLASBH2":ATLASBH2_string,
-        #"ATLASBH3":ATLASBH3_string,
+        "ATLASBH2":ATLASBH2_string,
+        "ATLASBH3":ATLASBH3_string,
         "ATLASBH4":ATLASBH4_string,
         "ATLASBH5":ATLASBH5_string,
-        #"ATLASBH6":ATLASBH6_string
+        "ATLASBH6":ATLASBH6_string
     }
 if("data10percent" in PlotsFname):
     fnames = {
