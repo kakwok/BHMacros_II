@@ -53,7 +53,8 @@ fitNormRanges.showFitRanges()
 fitNormRanges.showNormRanges()
 rebin          = False   # Rebin from 50GeV to 100GeV
 WriteDataCards = False
-DrawUncertainty= False 
+DrawUncertainty= True 
+DrawRatioPanel = True 
 #f_outlier     = null
 
 
@@ -68,6 +69,8 @@ NormTable.append(NormTable_head)
 NormFactors         = {}
 FracNormErrors      = {}
 
+NormFactors_exc4         = {}
+FracNormErrors_exc4      = {}
 STup = 9000
 def getratio(f1,f2):
     formula = "("+f1.GetExpFormula("p").Data() + ")/(" + f2.GetExpFormula("p").Data()+")-1"
@@ -235,7 +238,11 @@ def getNormErrorGraphs(fLow,fUp,fbest, normErr,RelOrAbs):
         if RelOrAbs=="Abs":
             fUp_norm.SetPoint(fUp_norm.GetN(), x, fbest.Eval(x)+delta )
         elif RelOrAbs=="Rel":
-            fUp_norm.SetPoint(fUp_norm.GetN(), x, delta/fbest.Eval(x) )
+            if DrawRatioPanel:
+                fUp_norm.SetPoint(fUp_norm.GetN(), x, delta/fbest.Eval(x)+1)
+            else:
+                fUp_norm.SetPoint(fUp_norm.GetN(), x, delta/fbest.Eval(x) )
+
 
     for x in np.arange(fLow.GetXmin(),fLow.GetXmax(),50):
         shape_err = (fbest.Eval(x)-fLow.Eval(x) )
@@ -248,7 +255,8 @@ def getNormErrorGraphs(fLow,fUp,fbest, normErr,RelOrAbs):
                 fLow_norm.SetPoint(fLow_norm.GetN(), x, 0 )  # fLow_norm should not be negative
         elif RelOrAbs=="Rel":
             if (delta<fbest.Eval(x)):
-                fLow_norm.SetPoint(fLow_norm.GetN(), x, -1*delta/fbest.Eval(x) )
+                if(DrawRatioPanel): fLow_norm.SetPoint(fLow_norm.GetN(), x, -1*delta/fbest.Eval(x) +1)
+                else:               fLow_norm.SetPoint(fLow_norm.GetN(), x, -1*delta/fbest.Eval(x) )
             else:
                 fLow_norm.SetPoint(fLow_norm.GetN(), x, 0 )  # fLow_norm should not be negative
     return fLow_norm, fUp_norm
@@ -275,13 +283,23 @@ def getRatioFillGraph(fLow, fUp, fbest, normErr):
     gDown_norm, gUp_norm = getNormErrorGraphs(fLow,fUp,fbest,normErr,"Rel")
     for x in np.arange(fLow.GetXmin(),fLow.GetXmax(),50):
         if(not fbest.Eval(x)==0):
-            gFill.SetPoint(gFill.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
-            gDown.SetPoint(gDown.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
-            gbest.SetPoint(gbest.GetN(), x, 0)
+            if DrawRatioPanel:
+                gFill.SetPoint(gFill.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x) +1)
+                gDown.SetPoint(gDown.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x) +1)
+                gbest.SetPoint(gbest.GetN(), x, 1)
+            else:
+                gFill.SetPoint(gFill.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
+                gDown.SetPoint(gDown.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
+                gbest.SetPoint(gbest.GetN(), x, 0)
+
     for x in np.arange(fUp.GetXmax(),fUp.GetXmin(),-50):
         if(not fbest.Eval(x)==0):
-            gFill.SetPoint(gFill.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
-            gUp.SetPoint(  gUp.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
+            if DrawRatioPanel:
+                gFill.SetPoint(gFill.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x) +1)
+                gUp.SetPoint(  gUp.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x)   +1)
+            else:    
+                gFill.SetPoint(gFill.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
+                gUp.SetPoint(  gUp.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
     gDict={"gUp":gUp,"gDown":gDown,"gFill":gFill,"gbest":gbest,"gUp_norm":gUp_norm,"gDown_norm":gDown_norm}
     return gDict
 
@@ -333,11 +351,15 @@ def getNormalizedFunctionWithChi2(f, hist, ExcOrInc, j, STlow=0, STup=0):
     normfactor =  histBinTotal/normBinTotal 
     FracNormErr    = sqrt(1.0/sqrt(histBinTotal)+1.0/sqrt(normBinTotal))
     NormErr        = FracNormErr * normfactor 
-    if(ExcOrInc=="Inc" and not(j in NormTable_j) and ("exc3" in f.GetName())):
-        NormTable.append([">=%s"%j,"%s-%s"%(LowerNormBound/1000,UpperNormBound/1000),"%.3f+-%.3f"%(normfactor,NormErr),"%.1f"%(FracNormErr*100)+"%"])
-        NormFactors["Inc%s"%j]    = normfactor
-        FracNormErrors["Inc%s"%j] = FracNormErr 
-        NormTable_j.append(j)
+    if(ExcOrInc=="Inc") :
+        if ("exc3" in f.GetName() and not("Inc%s"%j in NormFactors) ):
+            NormTable.append([">=%s"%j,"%s-%s"%(LowerNormBound/1000,UpperNormBound/1000),"%.3f+-%.3f"%(normfactor,NormErr),"%.1f"%(FracNormErr*100)+"%"])
+            NormFactors["Inc%s"%j]    = normfactor
+            FracNormErrors["Inc%s"%j] = FracNormErr 
+        if ("exc4" in f.GetName() and not("Inc%s"%j in NormFactors_exc4) ):
+            NormFactors_exc4["Inc%s"%j]    = normfactor
+            FracNormErrors_exc4["Inc%s"%j] = FracNormErr 
+
     if debug:
         print " The normfactor for %s is %.3f  | bin sum(numerator)=%s bin sum(denorminator) = %s" % ( f.GetName(), normfactor, histBinTotal, normBinTotal )
     fNormalized = f.Clone()
@@ -459,13 +481,16 @@ def ratioplot(fbest, sthist,xlow,xup):
 ##  j         = multiplicity of the histogram
 ## ExcOrInc   = "Exc" or "Inc"
 ## stRefHist  = Reference histogram (N=2/N=3/N<=3) for drawing ratio plot 
+## Signal     = Dictionary of signal: "hist":TH1F of same ST spectrum, "label":Labelname, ""
 ###################################
-def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
+def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signal=None):
     # For exclusive STs
     if ("Exc02" in stRefHist.GetName()):
 	    canvasName = "st%s%02iCanvas_Exc02"%(ExcOrInc,j)
     if ("Exc03" in stRefHist.GetName()):
 	    canvasName = "st%s%02iCanvas_Exc03"%(ExcOrInc,j)
+    if ("Exc04" in stRefHist.GetName()):
+	    canvasName = "st%s%02iCanvas_Exc04"%(ExcOrInc,j)
     if ("Exc0203" in stRefHist.GetName()):
 	    canvasName = "st%s%02iCanvas_Exc0203"%(ExcOrInc,j)
     UpperPadName    = "%s%02ipad"%(ExcOrInc,j)
@@ -542,7 +567,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     if (ExcOrInc=="Exc"):
         fLow_norm,fUp_norm= getNormErrorGraphs( fLow, fUp, fbest, 0 ,"Abs")
     if (ExcOrInc=="Inc"):
-        print "In N=%i, fractional errors to be %s\n"%(j,FracNormErrors["Inc%s"%j])
+        print "In N>=%i, fractional errors to be %s\n"%(j,FracNormErrors["Inc%s"%j])
         fLow_norm,fUp_norm= getNormErrorGraphs( fLow, fUp, fbest, FracNormErrors["Inc%s"%j] ,"Abs")
         #fLow_norm,fUp_norm= getNormErrorGraphs( fLow, fUp, fbest, 0 ,"Abs")
     
@@ -623,26 +648,38 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
     lowerPads[LowerPadName].Draw()
     lowerPads[LowerPadName].cd()
 
-    # Save ST ratio
-    stExcRatio = stHist.Clone("st%s%02i_RatioToExc%s"%(ExcOrInc,j,stRefHist.GetName()[6]))
-    stExcRatio.Sumw2()
-    if(ExcOrInc=="Exc"):
-        stExcRatio.GetYaxis().SetTitle("Ratio of n=%i to n=%s"%(j,stRefHist.GetName()[6]))
-    if(ExcOrInc=="Inc"):
-        stExcRatio.GetYaxis().SetTitle("Ratio of n>=%i to n=%s"%(j,stRefHist.GetName()[6]))
-    stExcRatio.Divide(stRefHist)
-    print "%s has meanY =%s" %(stExcRatio.GetName(),getMeanBinContent(stExcRatio))
-    stExcRatio.GetYaxis().SetRangeUser(0,getMeanBinContent(stExcRatio)*2)
-    stExcRatio.Write()
-
     #Draw pulls in the lower panel
-    stExcRatio = stHist.Clone("st%s%02i_fitPanel"%(ExcOrInc,j))
-    stExcRatio.Sumw2()
-    stExcRatio.GetYaxis().SetTitle("(Data-Fit)/Fit")
-    stExcRatio.Add(fbest,-1)    # Subtract best fit
-    stExcRatio.Divide(fbest,1)  # Divide by best fit    
-    stExcRatio.GetYaxis().SetRangeUser(-1,1)
-    #stExcRatio.GetYaxis().SetRangeUser(-0.05,0.05)
+    if DrawRatioPanel:
+        # Save ST ratio
+        stExcRatio = stHist.Clone("st%s%02i_RatioToExc%s"%(ExcOrInc,j,stRefHist.GetName()[6]))
+        stRefClone = stRefHist.Clone("stRef%s%02i_RatioToExc%s"%(ExcOrInc,j,stRefHist.GetName()[6])) 
+        stExcRatio.Sumw2()
+        if(ExcOrInc=="Exc"):
+            stExcRatio.GetYaxis().SetTitle("Ratio of n=%i to n=%s"%(j,stRefHist.GetName()[6]))
+        if(ExcOrInc=="Inc"):
+            stExcRatio.GetYaxis().SetTitle("Ratio of n>=%i to n=%s"%(j,stRefHist.GetName()[6]))
+            if ("Exc03" in stRefHist.GetName()):  stRefClone.Scale(NormFactors["Inc%s"%j])
+            if ("Exc04" in stRefHist.GetName()):  stRefClone.Scale(NormFactors_exc4["Inc%s"%j])
+
+        if not stRefHist.GetBinWidth(1)==stHist.GetBinWidth(1): 
+            stRefClone.Rebin()
+            stRefClone.Scale(0.5)   # to compensate the rebin
+            stExcRatio.Divide(stRefClone)
+        else:
+            stExcRatio.Divide(stRefClone)
+        print "%s has meanY =%s" %(stExcRatio.GetName(),getMeanBinContent(stExcRatio))
+        if("QCD" in PlotsFname):
+            stExcRatio.GetYaxis().SetRangeUser(0.5,1.5)
+        else:
+            stExcRatio.GetYaxis().SetRangeUser(0,2)
+        stExcRatio.Write()
+    else:
+        stExcRatio = stHist.Clone("st%s%02i_fitPanel"%(ExcOrInc,j))
+        stExcRatio.Sumw2()
+        stExcRatio.GetYaxis().SetTitle("(Data-Fit)/Fit")
+        stExcRatio.Add(fbest,-1)    # Subtract best fit
+        stExcRatio.Divide(fbest,1)  # Divide by best fit    
+        stExcRatio.GetYaxis().SetRangeUser(-1,1)
     stExcRatio.GetXaxis().SetLabelSize(0.1)
     stExcRatio.GetXaxis().SetTitleSize(0.1)
     stExcRatio.GetXaxis().SetTitle("S_{T} (GeV)")
@@ -662,18 +699,30 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas):
         	RatioFillGraphs = getRatioFillGraph( fLow, fUp, fbest ,0)
         if(ExcOrInc=="Inc"):
         	RatioFillGraphs = getRatioFillGraph( fLow, fUp, fbest ,FracNormErrors["Inc%s"%j])
-    	RatioFillGraphs["gFill"].SetFillColorAlpha(kGray,0.35)
-    	RatioFillGraphs["gFill"].Draw("sameF")
-    	RatioFillGraphs["gUp"].SetLineColor(kBlue)
-    	RatioFillGraphs["gUp"].Draw("sameC")
-    	RatioFillGraphs["gDown"].SetLineColor(kBlue)
-    	RatioFillGraphs["gDown"].Draw("sameC")
-    	RatioFillGraphs["gbest"].SetLineColor(kBlack)
-    	RatioFillGraphs["gbest"].Draw("sameC")
-    	RatioFillGraphs["gUp_norm"].SetLineColor(kRed)
-    	RatioFillGraphs["gUp_norm"].Draw("sameC")
-    	RatioFillGraphs["gDown_norm"].SetLineColor(kRed)
-    	RatioFillGraphs["gDown_norm"].Draw("sameC")
+        if DrawRatioPanel:
+    	    RatioFillGraphs["gFill"].SetFillColorAlpha(kGray,0.35)
+    	    RatioFillGraphs["gFill"].Draw("sameF")
+    	    RatioFillGraphs["gUp"].SetLineColor(kBlue)
+    	    RatioFillGraphs["gUp"].Draw("sameC")
+    	    RatioFillGraphs["gDown"].SetLineColor(kBlue)
+    	    RatioFillGraphs["gDown"].Draw("sameC")
+            RatioFillGraphs["gUp_norm"].SetLineColor(kRed)
+            RatioFillGraphs["gUp_norm"].Draw("sameC Y+")
+            RatioFillGraphs["gDown_norm"].SetLineColor(kRed)
+            RatioFillGraphs["gDown_norm"].Draw("sameC Y+")
+        else:
+    	    RatioFillGraphs["gFill"].SetFillColorAlpha(kGray,0.35)
+    	    RatioFillGraphs["gFill"].Draw("sameF")
+    	    RatioFillGraphs["gUp"].SetLineColor(kBlue)
+    	    RatioFillGraphs["gUp"].Draw("sameC")
+    	    RatioFillGraphs["gDown"].SetLineColor(kBlue)
+    	    RatioFillGraphs["gDown"].Draw("sameC")
+    	    RatioFillGraphs["gbest"].SetLineColor(kBlack)
+    	    RatioFillGraphs["gbest"].Draw("sameC")
+    	    RatioFillGraphs["gUp_norm"].SetLineColor(kRed)
+    	    RatioFillGraphs["gUp_norm"].Draw("sameC")
+    	    RatioFillGraphs["gDown_norm"].SetLineColor(kRed)
+    	    RatioFillGraphs["gDown_norm"].Draw("sameC")
     	stExcRatio.Draw("sameEP")
     else:
         fpulls = []
@@ -1005,14 +1054,12 @@ for j in range(2,12):
     #if j==2:
     #    NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,stExc2Hist,True)
     if j==3:
-        NormAndDrawST(stExcHist,j,"Exc",stExc2Hist,True)
-    if j==4:
         NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,True)
+    if j==4:
+        NormAndDrawST(stExcHist,j,"Exc",stExc4Hist,True)
         
-    #NormAndDrawST(stIncHist,j,"Inc",stExc2Hist,True)
-    NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True)
-    #NormAndDrawST(stExcHist,j,"Exc",stExc2or3Hist,False)
-    #NormAndDrawST(stIncHist,j,"Inc",stExc2or3Hist,False)
+    #NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True)
+    NormAndDrawST(stIncHist,j,"Inc",stExc4Hist,True)
 
 c1= TCanvas("chi2graph","Chi2 vs N", 800,600)
 OutFile.Append(c1)
@@ -1041,7 +1088,7 @@ chi2graphs_norm[chi2graphs_norm.keys()[0]].GetYaxis().SetRangeUser(0,1)
 leg.SetFillStyle(1001);
 leg.SetFillColor(0);
 leg.Draw()
-c1.Write()
+#c1.Write()
 # Write the chi2pNDF graphs for fitting
 c1.Clear()
 leg.Clear()
@@ -1066,7 +1113,7 @@ print np.sort(np.array(f_integrals.values()))
 print abs(np.sort(np.array(f_integrals.values()))-(median+mean)/2)
 #for row in chi2Table:
 #    print row
-c1.Write()
+#c1.Write()
 
 #if __name__ == '__main__':
 #   rep = ''
