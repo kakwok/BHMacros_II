@@ -10,7 +10,7 @@ import numpy as np
 from tabulate import tabulate
 
 ##################################################################
-CMS_lumi.lumi_13TeV = "2.3 fb^{-1}"
+CMS_lumi.lumi_13TeV = "35.9 fb^{-1}"
 CMS_lumi.writeExtraText = 1
 CMS_lumi.extraText = "Preliminary"
 CMS_lumi.lumi_sqrtS = "13 TeV" # used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)
@@ -54,7 +54,8 @@ fitNormRanges.showNormRanges()
 rebin          = False   # Rebin from 50GeV to 100GeV
 WriteDataCards = False
 DrawUncertainty= True 
-DrawRatioPanel = True 
+DrawRatioPanel = False 
+Lumi           = 35900
 #f_outlier     = null
 
 
@@ -473,6 +474,11 @@ def setBestFit(functions):
     #return functions[ chi2_devlist.index( min(chi2_devlist) ) ]
 def ratioplot(fbest, sthist,xlow,xup):
     h = sthist.Clone("h_ratio")
+def weightSignal(signalhist, xsection, lumi):
+    Ngen   = 10000
+    Weight = (Lumi * xsection) / Ngen
+    signalhist.Scale(Weight)
+    return signalhist
  
 ###################################
 ##  This function takes stHist, get normalized fit function, symmetrize it and draw it on a canvas
@@ -481,9 +487,9 @@ def ratioplot(fbest, sthist,xlow,xup):
 ##  j         = multiplicity of the histogram
 ## ExcOrInc   = "Exc" or "Inc"
 ## stRefHist  = Reference histogram (N=2/N=3/N<=3) for drawing ratio plot 
-## Signal     = Dictionary of signal: "hist":TH1F of same ST spectrum, "label":Labelname, ""
+## Signals    = list of Dictionary of signal: "hist":TH1F of same ST spectrum, "label":Labelname 
 ###################################
-def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signal=None):
+def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     # For exclusive STs
     if ("Exc02" in stRefHist.GetName()):
 	    canvasName = "st%s%02iCanvas_Exc02"%(ExcOrInc,j)
@@ -508,16 +514,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signal=None):
     stHist.SetMarkerSize(0.7)
     #stHist.Sumw2(False)
     stHist.Draw("EP")
-    if (ExcOrInc=="Exc"):
-        lowerNormBin  = stHist.GetXaxis().FindBin(float(fitNormRanges.getLowerNormBound("exc%i"%j)))
-        upperNormBin  = stHist.GetXaxis().FindBin(float(fitNormRanges.getUpperNormBound("exc%i"%j)))
-    if (ExcOrInc=="Inc"):
-        lowerNormBin  = stHist.GetXaxis().FindBin(float(fitNormRanges.getLowerNormBound("inc%i"%j)))
-        upperNormBin  = stHist.GetXaxis().FindBin(float(fitNormRanges.getUpperNormBound("inc%i"%j)))
 
-    lowerNormEdge = stHist.GetXaxis().GetBinLowEdge(lowerNormBin)
-    upperNormEdge = stHist.GetXaxis().GetBinLowEdge(upperNormBin)
-    binwidth      = stHist.GetXaxis().GetBinWidth(upperNormBin)
+    binwidth      = stHist.GetXaxis().GetBinWidth(1)
     #stHist.GetXaxis().SetRangeUser(lowerNormEdge, STup)
     if (ExcOrInc=="Exc"):
         stHist.GetXaxis().SetRangeUser(fitNormRanges.getLowerPlotRange("exc%i"%j),fitNormRanges.getUpperPlotRange("exc%i"%j) )
@@ -525,10 +523,9 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signal=None):
         stHist.GetXaxis().SetRangeUser(fitNormRanges.getLowerPlotRange("inc%i"%j),fitNormRanges.getUpperPlotRange("inc%i"%j) )
     
     stHist.GetXaxis().SetLabelSize(0)
-    stHist.SetMinimum(1e-1)
-    #stHist.SetMinimum(1e-4)
+    #stHist.SetMinimum(1e-1)
+    stHist.SetMinimum(1e-4)
 
-    print "in N=%i, upperNormEdge = %s, lowerNormEdge = %s" % (j,upperNormEdge, lowerNormEdge)
     chi2_list     = []
     #chi2 deviation list
     chi2_devlist  = []
@@ -611,7 +608,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signal=None):
 
 	fbest.Draw("SAME")
 
-    legend = TLegend(0.6, 0.7, 0.8, 0.85,"", "brNDC")
+    legend = TLegend(0.55, 0.6, 0.8, 0.85,"", "brNDC")
     legend.SetTextSize(0.04);
     legend.SetLineWidth(1);
     legend.SetBorderSize(0);
@@ -630,6 +627,20 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signal=None):
     if DrawUncertainty:
 	    legend.AddEntry(fillGraph,"Background Shape","fl");
 	    legend.AddEntry(fLow_norm,"Systematic Uncertainties","l");
+    if(not Signals==None):
+        print "Injecting signal models = ", Signals.keys()
+        for signalName in Signals:
+            signal = Signals[signalName]
+            print "Injecting  model = "+signalName
+            signalHistName = "st"+ExcOrInc+"%02i"%j+"Hist"
+            signalhist = signal[signalHistName]
+            weightSignal( signalhist, signal["xsec"], Lumi)
+            signalhist.SetLineColor(signal["color"])
+            if not(stHist.GetBinWidth(1)==signalhist.GetBinWidth(1)):
+                signalhist.Rebin()
+            signalhist.Add(stHist)
+            signalhist.Draw("same L")
+            legend.AddEntry(signalhist,signal["label"],"l");
     legend.Draw()
 
     #CMS_lumi.CMS_lumi(STcomparisons[canvasName], iPeriod, iPos)
@@ -1009,6 +1020,28 @@ for flist in AllFitList:
 fbestName = PickBestFit(f_integrals)
 print "The minimum chi2 is %s %.3f" % (Chi2List.index(min(Chi2List)),min(Chi2List))
 
+BH10_MBH6 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Charybdis/BlackHole_BH10_MD4000_MBH6000_n2_13TeV_TuneCUETP8M1-charybdis_FlatTuple_1.root" ,'label':"C5_MD4_MBH7_n2","color":kViolet,"xsec":0.69784E-01}
+BH10_MBH7 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Charybdis/BlackHole_BH10_MD4000_MBH7000_n2_13TeV_TuneCUETP8M1-charybdis_FlatTuple_1.root" ,'label':"C5_MD4_MBH6_n2","color":kGreen,"xsec":0.87735E-02}
+#BH10_MBH8 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackHole_BH10_MD4000_MBH8000_n2_13TeV_TuneCUETP8M1-charybdis_FlatTuple_1.root" ,'label':"C5_MD4_MBH8_n2","color":kCyan,"xsec":0.81238E-03}
+
+BH2_MBH8 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH2_MD-4000_MBH-8000_n-2_TuneCUETP8M1_13TeV-blackmax_FlatTuple_1.root" ,'label':"B2_MD4_MBH8_n2","color":kYellow ,"xsec":2.6425800E-03}
+BH2_MBH9 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH2_MD-4000_MBH-9000_n-2_TuneCUETP8M1_13TeV-blackmax_FlatTuple_1.root" ,'label':"B2_MD4_MBH9_n2","color":kCyan,"xsec":2.0539200E-04}
+lowMultiSignals ={
+"BH10_MBH6":BH10_MBH6,
+"BH10_MBH7":BH10_MBH7,
+"BH2_MBH8":BH2_MBH8,
+"BH2_MBH9":BH2_MBH9
+}
+highMultiSignals={
+"BH2_MBH8":BH2_MBH8,
+"BH2_MBH9":BH2_MBH9
+}
+
+SignalLists={
+"lowMultiSignals":lowMultiSignals, 
+"highMultiSignals":highMultiSignals
+}
+
 for j in range(2,12):
     if (argv[4]=="useMET"):
         if("ST_tight" in PlotsDir.GetName()):
@@ -1043,7 +1076,17 @@ for j in range(2,12):
     stExc2Hist=PlotsDir.Get(Exc02HistName)
     stExc3Hist=PlotsDir.Get(Exc03HistName)
     stExc4Hist=PlotsDir.Get(Exc04HistName)
-    
+
+    #Get histograms for all signals
+    for signalListName,signalList in SignalLists.items():
+        for signalname,signal in signalList.items():
+            signalRoot          = TFile(signal["fname"])
+            signal[IncHistName] = signalRoot.Get("ST/"+IncHistName)
+            signal[ExcHistName] = signalRoot.Get("ST/"+ExcHistName)
+            signal[IncHistName].SetDirectory(0)
+            signal[ExcHistName].SetDirectory(0)
+
+    OutFile.cd()    
     if rebin :
         stExc2Hist.Rebin()
         stExc3Hist.Rebin()
@@ -1054,12 +1097,14 @@ for j in range(2,12):
     #if j==2:
     #    NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,stExc2Hist,True)
     if j==3:
-        NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,True)
+        NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,True,SignalLists["lowMultiSignals"])
     if j==4:
         NormAndDrawST(stExcHist,j,"Exc",stExc4Hist,True)
-        
-    #NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True)
-    NormAndDrawST(stIncHist,j,"Inc",stExc4Hist,True)
+    if j<=5: 
+        NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True,SignalLists["lowMultiSignals"])
+    else:
+        NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True,SignalLists["highMultiSignals"])
+    #NormAndDrawST(stIncHist,j,"Inc",stExc4Hist,True)
 
 c1= TCanvas("chi2graph","Chi2 vs N", 800,600)
 OutFile.Append(c1)
