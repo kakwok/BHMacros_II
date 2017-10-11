@@ -8,6 +8,7 @@ from math import sqrt
 import CMS_lumi
 import numpy as np
 from tabulate import tabulate
+import copy
 
 ##################################################################
 CMS_lumi.lumi_13TeV = "35.9 fb^{-1}"
@@ -31,6 +32,7 @@ R = 0.04*W_ref
 STcomparisons = {}   #  Dictionary of canvas
 upperPads     = {}   #  Dictionary of upperPads in Canvas
 lowerPads     = {}   #  Dictionary of lowerPads in Canvas
+LargelowerPads= {}   #  Dictionary of lowerPads in Canvas
 Chi2List     = []
 f2_list      = {}     #  functions for fitted to ST n=2  
 f3_list      = {}     #  functions for fitted to ST n=3
@@ -52,9 +54,11 @@ fitNormRanges = FitAndNormRange(argv[3])
 fitNormRanges.showFitRanges()
 fitNormRanges.showNormRanges()
 rebin          = False   # Rebin from 50GeV to 100GeV
-WriteDataCards = False
-DrawUncertainty= True 
-DrawRatioPanel = False 
+WriteDataCards = False 
+DrawUncertainty= True
+DrawRatioPanel = True 
+DrawSignal     = False 
+InjectSignal   = False 
 Lumi           = 35900
 #f_outlier     = null
 
@@ -259,7 +263,7 @@ def getNormErrorGraphs(fLow,fUp,fbest, normErr,RelOrAbs):
                 if(DrawRatioPanel): fLow_norm.SetPoint(fLow_norm.GetN(), x, -1*delta/fbest.Eval(x) +1)
                 else:               fLow_norm.SetPoint(fLow_norm.GetN(), x, -1*delta/fbest.Eval(x) )
             else:
-                fLow_norm.SetPoint(fLow_norm.GetN(), x, 0 )  # fLow_norm should not be negative
+                fLow_norm.SetPoint(fLow_norm.GetN(), x, -1 )  # fLow_norm should not be negative
     return fLow_norm, fUp_norm
 
 # Return the TGraph bounded by fLow and fUp for drawing
@@ -406,7 +410,7 @@ def customfit(f, Sthist, ExcN):
     fClone.SetRange(4500,13000)
     Sthist.Fit( fClone.GetName(), "Q0LRB", "" , 4500, 13000)
     chi2full     = Sthist.Chisquare( fClone, "R") 
-    UpperInt     = fClone.Integral( 5000, 7000)
+    UpperInt     = f.Integral( 5000.0, 8000.0)
     ndf_full=0
     for i in range(Sthist.FindBin(4500),Sthist.FindBin(13000)+1):
         if not(Sthist.GetBinContent(i)==0):  ndf_full+=1
@@ -425,7 +429,6 @@ def customfit(f, Sthist, ExcN):
     if("exc3" in f.GetName()):
         fname = f.GetName().replace("_exc3","")
         chi2graphs_fit[fname].SetPoint( chi2graphs_fit[fname].GetN(), 3, chi2pNDF)
-        #f_integrals.append( UpperInt)
         f_integrals[fname] = UpperInt
         f_chi2.append( chi2full)
         chi2Table_row = [fname,"3", "%.3f"%(f.GetChisquare()),f.GetNDF(), "%.3f"%chi2pNDF,"%.3f"%chi2full, ndf_full, "%.3f"%chi2fullpNDF ,"%.3f"%UpperInt  ,int(r)]
@@ -434,7 +437,6 @@ def customfit(f, Sthist, ExcN):
     if("exc4" in f.GetName()):
         fname = f.GetName().replace("_exc4","")
         chi2graphs_fit[fname].SetPoint( chi2graphs_fit[fname].GetN(), 4 ,chi2pNDF)
-        #chi2Table_row = [fname,"4", "%.3f"%(f.GetChisquare()), "%.3f"%f.GetNDF(), "%.3f"%chi2pNDF,int(r)]
         chi2Table_row = [fname,"4", "%.3f"%(f.GetChisquare()), f.GetNDF(), "%.3f"%chi2pNDF,"%.3f"%chi2full, ndf_full, "%.3f"%chi2fullpNDF ,"%.3f"%UpperInt  ,int(r)]
         chi2Table.append(chi2Table_row)
     print "Done fitting %s, result = %s, %s has parameters :"%( f.GetName(),int(r), f.GetName()) , pars
@@ -523,8 +525,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         stHist.GetXaxis().SetRangeUser(fitNormRanges.getLowerPlotRange("inc%i"%j),fitNormRanges.getUpperPlotRange("inc%i"%j) )
     
     stHist.GetXaxis().SetLabelSize(0)
-    #stHist.SetMinimum(1e-1)
-    stHist.SetMinimum(1e-4)
+    stHist.SetMinimum(1e-1)
+    #stHist.SetMinimum(1e-4)
 
     chi2_list     = []
     #chi2 deviation list
@@ -608,7 +610,11 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
 
 	fbest.Draw("SAME")
 
-    legend = TLegend(0.55, 0.6, 0.8, 0.85,"", "brNDC")
+    if(DrawSignal):
+        #Use larger legend for signal
+        legend = TLegend(0.55, 0.6, 0.8, 0.85,"", "brNDC")
+    else:
+        legend = TLegend(0.6, 0.7, 0.8, 0.85,"", "brNDC")
     legend.SetTextSize(0.04);
     legend.SetLineWidth(1);
     legend.SetBorderSize(0);
@@ -625,9 +631,10 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         else:
             legend.AddEntry(stHist,"Data: multiplicity >=%i"%j,"ep");
     if DrawUncertainty:
-	    legend.AddEntry(fillGraph,"Background Shape","fl");
-	    legend.AddEntry(fLow_norm,"Systematic Uncertainties","l");
-    if(not Signals==None):
+        legend.AddEntry(fillGraph,"Background Shape","fl");
+        legend.AddEntry(fLow_norm,"Systematic Uncertainties","l");
+
+    if(not Signals==None and DrawSignal==True):
         print "Injecting signal models = ", Signals.keys()
         for signalName in Signals:
             signal = Signals[signalName]
@@ -638,9 +645,16 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
             signalhist.SetLineColor(signal["color"])
             if not(stHist.GetBinWidth(1)==signalhist.GetBinWidth(1)):
                 signalhist.Rebin()
-            signalhist.Add(stHist)
-            signalhist.Draw("same L")
-            legend.AddEntry(signalhist,signal["label"],"l");
+            if InjectSignal:
+                #Add the signal only when we inject signal
+                stHist.Add(signalhist) 
+            else:
+                #Add the signals to background estimation for drawing overlay plots
+                for ibin in range(1,signalhist.GetNbinsX()+1):
+                    x = signalhist.GetBinCenter(ibin)
+                    signalhist.SetBinContent(ibin, signalhist.GetBinContent(ibin) + fbest.Eval(x))
+                signalhist.Draw("same HIST")
+                legend.AddEntry(signalhist,signal["label"],"l");
     legend.Draw()
 
     #CMS_lumi.CMS_lumi(STcomparisons[canvasName], iPeriod, iPos)
@@ -651,7 +665,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     #frame = STcomparisons[canvasName].GetFrame()
     #frame.Draw()
 
-    LowerPadName = "%s%02iratiopad"%(ExcOrInc,j)
+    #LowerPadName = "%s%02iratiopad"%(ExcOrInc,j)
+    LowerPadName = canvasName + "_ratiopad" 
     STcomparisons[canvasName].cd()
     lowerPads[LowerPadName] = (TPad(LowerPadName, "ratiopad1", 0, 0.04, 1, 0.3))
     lowerPads[LowerPadName].SetTopMargin(0.1)
@@ -682,8 +697,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         if("QCD" in PlotsFname):
             stExcRatio.GetYaxis().SetRangeUser(0.5,1.5)
         else:
-            stExcRatio.GetYaxis().SetRangeUser(0,2)
-        stExcRatio.Write()
+            stExcRatio.GetYaxis().SetRangeUser(0,4)
     else:
         stExcRatio = stHist.Clone("st%s%02i_fitPanel"%(ExcOrInc,j))
         stExcRatio.Sumw2()
@@ -707,11 +721,12 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     #Draw Fit uncertainty
     if DrawUncertainty:
         if(ExcOrInc=="Exc"):
-        	RatioFillGraphs = getRatioFillGraph( fLow, fUp, fbest ,0)
+        	RatioFillGraphs = getRatioFillGraph(fLow, fUp, fbest ,0)
         if(ExcOrInc=="Inc"):
-        	RatioFillGraphs = getRatioFillGraph( fLow, fUp, fbest ,FracNormErrors["Inc%s"%j])
+        	RatioFillGraphs = getRatioFillGraph(fLow, fUp, fbest ,FracNormErrors["Inc%s"%j])
         if DrawRatioPanel:
     	    RatioFillGraphs["gFill"].SetFillColorAlpha(kGray,0.35)
+    	    RatioFillGraphs["gFill"].SetLineColor(kBlue)
     	    RatioFillGraphs["gFill"].Draw("sameF")
     	    RatioFillGraphs["gUp"].SetLineColor(kBlue)
     	    RatioFillGraphs["gUp"].Draw("sameC")
@@ -723,6 +738,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
             RatioFillGraphs["gDown_norm"].Draw("sameC Y+")
         else:
     	    RatioFillGraphs["gFill"].SetFillColorAlpha(kGray,0.35)
+    	    RatioFillGraphs["gFill"].SetLineColor(kBlue)
     	    RatioFillGraphs["gFill"].Draw("sameF")
     	    RatioFillGraphs["gUp"].SetLineColor(kBlue)
     	    RatioFillGraphs["gUp"].Draw("sameC")
@@ -748,9 +764,41 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
             fpulls.append(f_diff)
         for f in fpulls:
             f.Draw("same")
-        
+
+       
     if(WriteCanvas):
         STcomparisons[canvasName].Write()
+    #Clone and enlargethe lower panel 
+    if DrawRatioPanel:   
+        print "saving ratio panel canvas" 
+        stExcRatio.GetXaxis().SetLabelSize(0.05)
+        stExcRatio.GetXaxis().SetTitleSize(0.05)
+        stExcRatio.GetYaxis().SetLabelSize(0.05)
+        stExcRatio.GetYaxis().SetTitleSize(0.05)
+        stExcRatio.GetYaxis().SetTitleOffset(1)
+        stExcRatio.GetYaxis().SetRangeUser(0,4)
+        LargeLowerPadName = LowerPadName+"_large"
+        LargelowerPads[LargeLowerPadName] = lowerPads[LowerPadName].Clone()
+        LargelowerPads[LargeLowerPadName].SetName(LowerPadName+"_large")
+        LargelowerPads[LargeLowerPadName].SetPad(0,0,1,1)
+        LargelowerPads[LargeLowerPadName].SetBottomMargin(0.15)
+        LargelowerPads[LargeLowerPadName].cd()
+        
+        LargeRatioCanvas = TCanvas(LowerPadName+"_c1", LowerPadName+"_c1", 800, 600)
+        LargelowerPads[LargeLowerPadName].Draw()
+        LargeRatioCanvas.cd()
+
+        if("QCD" in PlotsFname):
+            LowerLeg = TLegend(0.1, 0.15, 0.4, 0.35,"", "brNDC")
+        else:
+            LowerLeg = TLegend(0.11, 0.65, 0.4, 0.85,"", "brNDC")
+        LowerLeg.SetBorderSize(0)
+        LowerLeg.AddEntry(stExcRatio,"QCD")
+        LowerLeg.AddEntry(RatioFillGraphs["gFill"],"Background Shape","fl")
+        LowerLeg.AddEntry(RatioFillGraphs["gUp_norm"],"Systematic Uncertainty","l")
+        LowerLeg.Draw("same")
+        LargeRatioCanvas.Write()
+
 
     if (WriteDataCards and ExcOrInc=="Inc"):
         outputForLimits = open("output/%s_Inclusive%i.txt"%(argv[2].replace(".root",""),j), "w")
@@ -803,10 +851,10 @@ ATLAS1_string   ="([0]*(1-(x/13000)^(1/3))^[1])/((x/13000)^[2])"
 ATLAS2_string   ="([0]*(1-(x/13000)^(1/3))^[1])/((x/13000)^([2]+[3]*(TMath::Log(x/13000))^2))"
 dijet1_string   ="([0]*(1-x/13000)^[1])/((x/13000)**([2]))" 
 dijet2_string   ="([0]*(1-x/13000)^[1])/((x/13000)**([2]+[3]*TMath::Log(x/13000)))" 
-#dijet3_string   ="([0]*(1-x/13000)^[1])/((x/13000)**([2]+[3]*TMath::Log(x/13000)+[4]*TMath::Log(x/13000)^2))"
+dijet3_string   ="([0]*(1-x/13000)^[1])/((x/13000)**([2]+[3]*TMath::Log(x/13000)+[4]*TMath::Log(x/13000)^2))"
 UA21_string     ="[0]*(x/13000)^[1]*TMath::Exp(1)^([2]*(x/13000))"
 UA22_string     ="[0]*(x/13000)^([1])*TMath::Exp(1)^([2]*(x/13000)+[3]*(x/13000)^2)"
-#UA23_string     ="[0]*(x/13000)^([1])*TMath::Exp(1)^([2]*(x/13000)+[3]*(x/13000)^2+[4]*(x/13000)^3)"
+UA23_string     ="[0]*(x/13000)^([1])*TMath::Exp(1)^([2]*(x/13000)+[3]*(x/13000)^2+[4]*(x/13000)^3)"
 dijetMod        ="([0]*(1-x/13000)^[1])*(1+[2]*(x/13000))/((x/13000)**([3]+[4]*TMath::Log(x/13000)))"
 
 ATLASBH1_string="([0]*(1-x/13000)^[1])*((x/13000)**([2]*TMath::Log(x/13000)))"           # standard dijet without constant exponent 
@@ -827,13 +875,12 @@ if("QCD" in PlotsFname):
         "CMSBH2":CMSBH2_string,
         "dijet1":dijet1_string,
         "dijet2":dijet2_string,
-        #"dijet3":dijet3_string,
+        "dijet3":dijet3_string,
         "ATLAS1":ATLAS1_string,
         "ATLAS2":ATLAS2_string,
         "UA21":UA21_string,
         "UA22":UA22_string,
-        #"UA23":UA23_string,
-        "dijetMod":dijetMod,
+        "UA23":UA23_string,
         "ATLASBH1":ATLASBH1_string,
         "ATLASBH2":ATLASBH2_string,
         "ATLASBH3":ATLASBH3_string,
@@ -850,10 +897,9 @@ if("data10percent" in PlotsFname):
         #"dijet3":dijet3_string,
         "ATLAS1":ATLAS1_string,
         "ATLAS2":ATLAS2_string,
-        #"UA21":UA21_string,
+        "UA21":UA21_string,
         #"UA22":UA22_string,
         #"UA23":UA23_string,
-        #"dijetMod":dijetMod,
         "ATLASBH1":ATLASBH1_string,
         "ATLASBH2":ATLASBH2_string,
         "ATLASBH3":ATLASBH3_string,
@@ -1020,21 +1066,18 @@ for flist in AllFitList:
 fbestName = PickBestFit(f_integrals)
 print "The minimum chi2 is %s %.3f" % (Chi2List.index(min(Chi2List)),min(Chi2List))
 
-BH10_MBH6 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Charybdis/BlackHole_BH10_MD4000_MBH6000_n2_13TeV_TuneCUETP8M1-charybdis_FlatTuple_1.root" ,'label':"C5_MD4_MBH7_n2","color":kViolet,"xsec":0.69784E-01}
-BH10_MBH7 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Charybdis/BlackHole_BH10_MD4000_MBH7000_n2_13TeV_TuneCUETP8M1-charybdis_FlatTuple_1.root" ,'label':"C5_MD4_MBH6_n2","color":kGreen,"xsec":0.87735E-02}
+BH10_MBH6 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Charybdis/BlackHole_BH10_MD4000_MBH6000_n2_13TeV_TuneCUETP8M1-charybdis_FlatTuple_1.root" ,'label':"C5_MD4_MBH6_n2","color":kViolet,"xsec":0.69784E-01}
+BH10_MBH7 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Charybdis/BlackHole_BH10_MD4000_MBH7000_n2_13TeV_TuneCUETP8M1-charybdis_FlatTuple_1.root" ,'label':"C5_MD4_MBH7_n2","color":kGreen,"xsec":0.87735E-02}
 #BH10_MBH8 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackHole_BH10_MD4000_MBH8000_n2_13TeV_TuneCUETP8M1-charybdis_FlatTuple_1.root" ,'label':"C5_MD4_MBH8_n2","color":kCyan,"xsec":0.81238E-03}
 
 BH2_MBH8 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH2_MD-4000_MBH-8000_n-2_TuneCUETP8M1_13TeV-blackmax_FlatTuple_1.root" ,'label':"B2_MD4_MBH8_n2","color":kYellow ,"xsec":2.6425800E-03}
-BH2_MBH9 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH2_MD-4000_MBH-9000_n-2_TuneCUETP8M1_13TeV-blackmax_FlatTuple_1.root" ,'label':"B2_MD4_MBH9_n2","color":kCyan,"xsec":2.0539200E-04}
 lowMultiSignals ={
-"BH10_MBH6":BH10_MBH6,
-"BH10_MBH7":BH10_MBH7,
-"BH2_MBH8":BH2_MBH8,
-"BH2_MBH9":BH2_MBH9
+"BH10_MBH6":BH10_MBH6
+#"BH2_MBH8":BH2_MBH8
 }
 highMultiSignals={
-"BH2_MBH8":BH2_MBH8,
-"BH2_MBH9":BH2_MBH9
+"BH10_MBH6":BH10_MBH6
+#"BH2_MBH8":BH2_MBH8,
 }
 
 SignalLists={
@@ -1094,17 +1137,23 @@ for j in range(2,12):
         stIncHist.Rebin()
     if j>6:
         stIncHist.Rebin()
-    #if j==2:
-    #    NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,stExc2Hist,True)
-    if j==3:
-        NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,True,SignalLists["lowMultiSignals"])
-    if j==4:
-        NormAndDrawST(stExcHist,j,"Exc",stExc4Hist,True)
-    if j<=5: 
-        NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True,SignalLists["lowMultiSignals"])
+    if DrawSignal:
+        if j==3:
+            NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,True,SignalLists["lowMultiSignals"])
+        if j==4:
+            NormAndDrawST(stExcHist,j,"Exc",stExc4Hist,True,SignalLists["lowMultiSignals"])
+        if j<=5: 
+            NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True,SignalLists["lowMultiSignals"])
+        else:
+            NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True,SignalLists["highMultiSignals"])
     else:
-        NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True,SignalLists["highMultiSignals"])
-    #NormAndDrawST(stIncHist,j,"Inc",stExc4Hist,True)
+        if j==3:
+            NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,True)
+        if j==4:
+            NormAndDrawST(stExcHist,j,"Exc",stExc4Hist,True)
+        #NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True)
+        NormAndDrawST(stIncHist,j,"Inc",stExc4Hist,True)
+
 
 c1= TCanvas("chi2graph","Chi2 vs N", 800,600)
 OutFile.Append(c1)
@@ -1150,6 +1199,8 @@ leg.SetFillColor(0);
 leg.Draw()
 print tabulate(chi2Table,"firstrow")
 print tabulate(NormTable,"firstrow")
+#print tabulate(chi2Table,chi2Table_head,tablefmt="latex")
+#print tabulate(NormTable,NormTable_head,tablefmt="latex")
 mean = np.mean(np.array(f_integrals.values()))
 median = np.median(np.array(f_integrals.values()))
 
