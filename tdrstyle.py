@@ -82,8 +82,8 @@ def setTDRStyle():
 # Margins:
   tdrStyle.SetPadTopMargin(0.05)
   tdrStyle.SetPadBottomMargin(0.13)
-  tdrStyle.SetPadLeftMargin(0.16)
-  tdrStyle.SetPadRightMargin(0.02)
+  #tdrStyle.SetPadLeftMargin(0.16)
+  tdrStyle.SetPadRightMargin(0.05)
 
 # For the Global title:
 
@@ -126,11 +126,6 @@ def setTDRStyle():
   tdrStyle.SetNdivisions(510, "XYZ")
   tdrStyle.SetPadTickX(1)  # To get tick marks on the opposite side of the frame
   tdrStyle.SetPadTickY(1)
-
-# For Legend:
-  rt.gStyle.SetLegendBorderSize(1)
-  rt.gStyle.SetLegendFillColor(0)
-  rt.gStyle.SetLegendFont(42)
 
 # Change for log plots:
   tdrStyle.SetOptLogx(0)

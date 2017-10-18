@@ -5,28 +5,21 @@ from ROOT import *
 from fitAndNormRanges import *
 from sys import argv
 from math import sqrt
-import CMS_lumi
+import CMS_lumi,tdrstyle
 import numpy as np
 from tabulate import tabulate
 import copy
 
 ##################################################################
+tdrstyle.setTDRStyle()
+gStyle.SetOptFit(0)
 CMS_lumi.lumi_13TeV = "35.9 fb^{-1}"
 CMS_lumi.writeExtraText = 1
 CMS_lumi.extraText = "Preliminary"
 CMS_lumi.lumi_sqrtS = "13 TeV" # used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)
-iPos = 13
+iPos = 11
 if( iPos==0 ): CMS_lumi.relPosX = 0.12
 iPeriod = 4
-H_ref = 600;
-W_ref = 800;
-W = W_ref
-H  = H_ref
-# references for T, B, L, R
-T = 0.08*H_ref
-B = 0.12*H_ref
-L = 0.12*W_ref
-R = 0.04*W_ref
 
 ##################################################################
 STcomparisons = {}   #  Dictionary of canvas
@@ -55,8 +48,8 @@ fitNormRanges.showFitRanges()
 fitNormRanges.showNormRanges()
 rebin          = False   # Rebin from 50GeV to 100GeV
 WriteDataCards = False 
-DrawUncertainty= True
-DrawRatioPanel = True 
+DrawUncertainty= True 
+DrawRatioPanel = False 
 DrawSignal     = False 
 InjectSignal   = False 
 Lumi           = 35900
@@ -358,7 +351,7 @@ def getNormalizedFunctionWithChi2(f, hist, ExcOrInc, j, STlow=0, STup=0):
     NormErr        = FracNormErr * normfactor 
     if(ExcOrInc=="Inc") :
         if ("exc3" in f.GetName() and not("Inc%s"%j in NormFactors) ):
-            NormTable.append([">=%s"%j,"%s-%s"%(LowerNormBound/1000,UpperNormBound/1000),"%.3f+-%.3f"%(normfactor,NormErr),"%.1f"%(FracNormErr*100)+"%"])
+            NormTable.append([">=%s"%j,"%s-%s"%(LowerNormBound/1000,UpperNormBound/1000),"%.5f+-%.5f"%(normfactor,NormErr),"%.1f"%(FracNormErr*100)+"%"])
             NormFactors["Inc%s"%j]    = normfactor
             FracNormErrors["Inc%s"%j] = FracNormErr 
         if ("exc4" in f.GetName() and not("Inc%s"%j in NormFactors_exc4) ):
@@ -408,9 +401,11 @@ def customfit(f, Sthist, ExcN):
     fClone.SetName(f.GetName()+"_fullRange")
     #fClone.SetRange(fitNormRanges.getUpperFitBound(ExcN),13000)
     fClone.SetRange(4500,13000)
+    for i in range(0,fClone.GetNpar()):
+        fClone.FixParameter(i, fClone.GetParameter(i))
     Sthist.Fit( fClone.GetName(), "Q0LRB", "" , 4500, 13000)
     chi2full     = Sthist.Chisquare( fClone, "R") 
-    UpperInt     = f.Integral( 5000.0, 8000.0)
+    UpperInt     = f.Integral( 5000.0, 7000.0)
     ndf_full=0
     for i in range(Sthist.FindBin(4500),Sthist.FindBin(13000)+1):
         if not(Sthist.GetBinContent(i)==0):  ndf_full+=1
@@ -597,7 +592,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         fbest.Draw("SAME")
     else:
         # Draw a legend for all functions
-        leg2 = TLegend(0.5,0.5, 0.85, 0.7,"", "brNDC")
+        leg2 = TLegend(0.5,0.5, 0.87, 0.68,"", "brNDC")
         leg2.SetNColumns(2)
         leg2.SetBorderSize(0)
         for fnorm in functions:
@@ -627,9 +622,9 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
             legend.AddEntry(stHist,"Data: multiplicity =%i"%j,"ep");
     if(ExcOrInc=="Inc"):
         if("QCD" in PlotsFname):
-            legend.AddEntry(stHist,"QCD: multiplicity >=%i"%j,"ep");
+            legend.AddEntry(stHist,"QCD: multiplicity #geq%i"%j,"ep");
         else:
-            legend.AddEntry(stHist,"Data: multiplicity >=%i"%j,"ep");
+            legend.AddEntry(stHist,"Data: multiplicity #geq%i"%j,"ep");
     if DrawUncertainty:
         legend.AddEntry(fillGraph,"Background Shape","fl");
         legend.AddEntry(fLow_norm,"Systematic Uncertainties","l");
@@ -657,13 +652,13 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
                 legend.AddEntry(signalhist,signal["label"],"l");
     legend.Draw()
 
-    #CMS_lumi.CMS_lumi(STcomparisons[canvasName], iPeriod, iPos)
+    CMS_lumi.CMS_lumi(STcomparisons[canvasName], iPeriod, iPos)
 
-    #STcomparisons[canvasName].cd()
-    #STcomparisons[canvasName].Update()
-    #STcomparisons[canvasName].RedrawAxis()
-    #frame = STcomparisons[canvasName].GetFrame()
-    #frame.Draw()
+    STcomparisons[canvasName].cd()
+    STcomparisons[canvasName].Update()
+    STcomparisons[canvasName].RedrawAxis()
+    frame = STcomparisons[canvasName].GetFrame()
+    frame.Draw()
 
     #LowerPadName = "%s%02iratiopad"%(ExcOrInc,j)
     LowerPadName = canvasName + "_ratiopad" 
@@ -703,8 +698,10 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         stExcRatio.Sumw2()
         stExcRatio.GetYaxis().SetTitle("(Data-Fit)/Fit")
         stExcRatio.Add(fbest,-1)    # Subtract best fit
-        stExcRatio.Divide(fbest,1)  # Divide by best fit    
+        stExcRatio.Divide(fbest,1)  # Divide by best fit   
         stExcRatio.GetYaxis().SetRangeUser(-1,1)
+        if(ExcOrInc=="Inc" and j>=10):
+            stExcRatio.GetYaxis().SetRangeUser(-3,3)
     stExcRatio.GetXaxis().SetLabelSize(0.1)
     stExcRatio.GetXaxis().SetTitleSize(0.1)
     stExcRatio.GetXaxis().SetTitle("S_{T} (GeV)")
@@ -771,25 +768,29 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     #Clone and enlargethe lower panel 
     if DrawRatioPanel:   
         print "saving ratio panel canvas" 
-        stExcRatio.GetXaxis().SetLabelSize(0.05)
-        stExcRatio.GetXaxis().SetTitleSize(0.05)
-        stExcRatio.GetYaxis().SetLabelSize(0.05)
-        stExcRatio.GetYaxis().SetTitleSize(0.05)
+        stExcRatio.GetXaxis().SetLabelSize(0.04)
+        stExcRatio.GetXaxis().SetTitleSize(0.04)
+        stExcRatio.GetYaxis().SetLabelSize(0.04)
+        stExcRatio.GetYaxis().SetTitleSize(0.04)
         stExcRatio.GetYaxis().SetTitleOffset(1)
-        stExcRatio.GetYaxis().SetRangeUser(0,4)
+        stExcRatio.GetYaxis().SetRangeUser(0,3)
         LargeLowerPadName = LowerPadName+"_large"
         LargelowerPads[LargeLowerPadName] = lowerPads[LowerPadName].Clone()
         LargelowerPads[LargeLowerPadName].SetName(LowerPadName+"_large")
         LargelowerPads[LargeLowerPadName].SetPad(0,0,1,1)
+        LargelowerPads[LargeLowerPadName].SetTopMargin(0.05)
         LargelowerPads[LargeLowerPadName].SetBottomMargin(0.15)
         LargelowerPads[LargeLowerPadName].cd()
-        
+        CMS_lumi.lumi_13TeV = "35.9 fb^{-1}"
+        CMS_lumi.writeExtraText = 1
+        CMS_lumi.extraText = "Preliminary"
+        CMS_lumi.lumi_sqrtS = "13 TeV" # used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)        
         LargeRatioCanvas = TCanvas(LowerPadName+"_c1", LowerPadName+"_c1", 800, 600)
-        LargelowerPads[LargeLowerPadName].Draw()
         LargeRatioCanvas.cd()
-
+        LargelowerPads[LargeLowerPadName].Draw()
+        CMS_lumi.CMS_lumi(LargelowerPads[LargeLowerPadName], iPeriod, iPos)
         if("QCD" in PlotsFname):
-            LowerLeg = TLegend(0.1, 0.15, 0.4, 0.35,"", "brNDC")
+            LowerLeg = TLegend(0.12, 0.65, 0.4, 0.8,"", "brNDC")
         else:
             LowerLeg = TLegend(0.11, 0.65, 0.4, 0.85,"", "brNDC")
         LowerLeg.SetBorderSize(0)
@@ -907,7 +908,25 @@ if("data10percent" in PlotsFname):
         "ATLASBH5":ATLASBH5_string,
         "ATLASBH6":ATLASBH6_string
     }
-
+if("dataPreApprove" in PlotsFname):
+    fnames = {
+        "CMSBH1":CMSBH1_string,
+        "CMSBH2":CMSBH2_string,
+        "dijet1":dijet1_string,
+        "dijet2":dijet2_string,
+        "dijet3":dijet3_string,
+        "ATLAS1":ATLAS1_string,
+        "ATLAS2":ATLAS2_string,
+        "UA21":UA21_string,
+        #"UA22":UA22_string,
+        #"UA23":UA23_string,
+        "ATLASBH1":ATLASBH1_string,
+        "ATLASBH2":ATLASBH2_string,
+        "ATLASBH3":ATLASBH3_string,
+        "ATLASBH4":ATLASBH4_string,
+        "ATLASBH5":ATLASBH5_string,
+        "ATLASBH6":ATLASBH6_string
+    }
 for fname in fnames:
     f2_list[fname+"_exc2"]     = TF1(fname+"_exc2",fnames[fname],1000,STup)
     f3_list[fname+"_exc3"]     = TF1(fname+"_exc3",fnames[fname],1000,STup)
@@ -1151,8 +1170,8 @@ for j in range(2,12):
             NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,True)
         if j==4:
             NormAndDrawST(stExcHist,j,"Exc",stExc4Hist,True)
-        #NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True)
-        NormAndDrawST(stIncHist,j,"Inc",stExc4Hist,True)
+        NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True)
+        #NormAndDrawST(stIncHist,j,"Inc",stExc4Hist,True)
 
 
 c1= TCanvas("chi2graph","Chi2 vs N", 800,600)
