@@ -33,5 +33,5 @@ PlotRange, inc,  6,  2900, 7500
 PlotRange, inc,  7,  2900, 7500 
 PlotRange, inc,  8,  2900, 7000 
 PlotRange, inc,  9,  2900, 6500 
-PlotRange, inc, 10,  2900, 6000 
+PlotRange, inc, 10,  2900, 6500 
 PlotRange, inc, 11,  2900, 6000 
