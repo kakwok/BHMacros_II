@@ -50,6 +50,7 @@ rebin          = False   # Rebin from 50GeV to 100GeV
 WriteDataCards = False 
 DrawUncertainty= True 
 DrawRatioPanel = False 
+DrawPullPanel  = False 
 DrawSignal     = False 
 InjectSignal   = False 
 Lumi           = 35900
@@ -489,13 +490,13 @@ def weightSignal(signalhist, xsection, lumi):
 def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     # For exclusive STs
     if ("Exc02" in stRefHist.GetName()):
-	    canvasName = "st%s%02iCanvas_Exc02"%(ExcOrInc,j)
+        canvasName = "st%s%02iCanvas_Exc02"%(ExcOrInc,j)
     if ("Exc03" in stRefHist.GetName()):
-	    canvasName = "st%s%02iCanvas_Exc03"%(ExcOrInc,j)
+        canvasName = "st%s%02iCanvas_Exc03"%(ExcOrInc,j)
     if ("Exc04" in stRefHist.GetName()):
-	    canvasName = "st%s%02iCanvas_Exc04"%(ExcOrInc,j)
+        canvasName = "st%s%02iCanvas_Exc04"%(ExcOrInc,j)
     if ("Exc0203" in stRefHist.GetName()):
-	    canvasName = "st%s%02iCanvas_Exc0203"%(ExcOrInc,j)
+        canvasName = "st%s%02iCanvas_Exc0203"%(ExcOrInc,j)
     UpperPadName    = "%s%02ipad"%(ExcOrInc,j)
     STcomparisons[canvasName] = TCanvas(canvasName, "ST, N=%i"%j, 700, 600)
     STcomparisons[canvasName].cd()
@@ -521,6 +522,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     
     stHist.GetXaxis().SetLabelSize(0)
     stHist.SetMinimum(1e-1)
+    stHist.SetMaximum(3.5e3)
     #stHist.SetMinimum(1e-4)
 
     chi2_list     = []
@@ -530,18 +532,17 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     # Normalize all fit functions
     for flist in AllFitList:
         for fname in flist:
-	    fname_norm = fname +"_norm"
-    	    fnorm,chi2pDOF      = getNormalizedFunctionWithChi2( flist[fname], stHist, ExcOrInc, j )
-    	    chi2_list.append(chi2pDOF)
-    	    chi2_devlist.append(abs(chi2pDOF-1))
+            fnorm,chi2pDOF      = getNormalizedFunctionWithChi2( flist[fname], stHist, ExcOrInc, j )
+            chi2_list.append(chi2pDOF)
+            chi2_devlist.append(abs(chi2pDOF-1))
             if(ExcOrInc=="Exc"):
                 if((ExcOrInc+str(j)).lower() in fname):
                     functions.append( fnorm )
             else:
-        	    functions.append( fnorm )
-    	    if(ExcOrInc=="Inc"):
+                functions.append( fnorm )
+            if(ExcOrInc=="Inc"):
                 chi2graphs_norm[fname].SetPoint( chi2graphs_norm[fname].GetN(), j , chi2pDOF)
-    	    if not DrawUncertainty:
+            if not DrawUncertainty:
                 if (ExcOrInc=="Inc"):
                     fnorm.Draw("SAME")
                 elif( (ExcOrInc+str(j)).lower() in fname):
@@ -569,7 +570,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         fillGraph.SetFillColorAlpha(kGray,0.35)
         fillGraph.SetLineColor(kBlue)
         fillGraph.Draw("sameF")
-    	stHist.Draw("sameEP")
+        stHist.Draw("sameEP")
         fUp.SetLineColor(kBlue)
         fUp.SetLineStyle(1)
         fUp.SetLineWidth(1)
@@ -603,7 +604,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         leg2.SetTextSize(0.03)
         leg2.Draw("SAME")
 
-	fbest.Draw("SAME")
+    fbest.Draw("SAME")
 
     if(DrawSignal):
         #Use larger legend for signal
@@ -693,6 +694,22 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
             stExcRatio.GetYaxis().SetRangeUser(0.5,1.5)
         else:
             stExcRatio.GetYaxis().SetRangeUser(0,4)
+    elif DrawPullPanel:
+        stExcRatio = stHist.Clone("st%s%02i_fitPanel"%(ExcOrInc,j))
+        stExcRatio.Sumw2()
+        stExcRatio.GetYaxis().SetTitle("(Data-Fit)/Unc.")
+        # Divide by error bar
+        for ibin in range(0,stExcRatio.GetNbinsX()+1):
+            if(not stExcRatio.GetBinContent(ibin)==0):
+                x = stExcRatio.GetBinCenter(ibin)
+                systematic = abs(fUp_norm.Eval(x)-fLow_norm.Eval(x))
+                Uncertainty = sqrt( stExcRatio.GetBinError(ibin)**2 + systematic**2) 
+                #print x, systematic, Uncertainty
+                stExcRatio.SetBinContent(ibin, (stExcRatio.GetBinContent(ibin)-fbest.Eval(x)) /Uncertainty )
+                stExcRatio.SetBinError(ibin, 0)
+        stExcRatio.GetYaxis().SetRangeUser(-3,3)
+        stExcRatio.SetFillColorAlpha(kGray,0.35)
+        stExcRatio.SetLineColor(kBlue)
     else:
         stExcRatio = stHist.Clone("st%s%02i_fitPanel"%(ExcOrInc,j))
         stExcRatio.Sumw2()
@@ -712,42 +729,46 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     stExcRatio.SetMarkerColor(kBlack)
     stExcRatio.SetMarkerStyle(8)
     stExcRatio.SetMarkerSize(0.7)
-    stExcRatio.Draw("EP")
+    if DrawPullPanel:
+        stExcRatio.Draw("HIST")
+    else:
+        stExcRatio.Draw("EP")
     stExcRatio.SetStats(0)
 
     #Draw Fit uncertainty
     if DrawUncertainty:
-        if(ExcOrInc=="Exc"):
-        	RatioFillGraphs = getRatioFillGraph(fLow, fUp, fbest ,0)
-        if(ExcOrInc=="Inc"):
-        	RatioFillGraphs = getRatioFillGraph(fLow, fUp, fbest ,FracNormErrors["Inc%s"%j])
-        if DrawRatioPanel:
-    	    RatioFillGraphs["gFill"].SetFillColorAlpha(kGray,0.35)
-    	    RatioFillGraphs["gFill"].SetLineColor(kBlue)
-    	    RatioFillGraphs["gFill"].Draw("sameF")
-    	    RatioFillGraphs["gUp"].SetLineColor(kBlue)
-    	    RatioFillGraphs["gUp"].Draw("sameC")
-    	    RatioFillGraphs["gDown"].SetLineColor(kBlue)
-    	    RatioFillGraphs["gDown"].Draw("sameC")
-            RatioFillGraphs["gUp_norm"].SetLineColor(kRed)
-            RatioFillGraphs["gUp_norm"].Draw("sameC Y+")
-            RatioFillGraphs["gDown_norm"].SetLineColor(kRed)
-            RatioFillGraphs["gDown_norm"].Draw("sameC Y+")
-        else:
-    	    RatioFillGraphs["gFill"].SetFillColorAlpha(kGray,0.35)
-    	    RatioFillGraphs["gFill"].SetLineColor(kBlue)
-    	    RatioFillGraphs["gFill"].Draw("sameF")
-    	    RatioFillGraphs["gUp"].SetLineColor(kBlue)
-    	    RatioFillGraphs["gUp"].Draw("sameC")
-    	    RatioFillGraphs["gDown"].SetLineColor(kBlue)
-    	    RatioFillGraphs["gDown"].Draw("sameC")
-    	    RatioFillGraphs["gbest"].SetLineColor(kBlack)
-    	    RatioFillGraphs["gbest"].Draw("sameC")
-    	    RatioFillGraphs["gUp_norm"].SetLineColor(kRed)
-    	    RatioFillGraphs["gUp_norm"].Draw("sameC")
-    	    RatioFillGraphs["gDown_norm"].SetLineColor(kRed)
-    	    RatioFillGraphs["gDown_norm"].Draw("sameC")
-    	stExcRatio.Draw("sameEP")
+        if(not DrawPullPanel):
+            if(ExcOrInc=="Exc"):
+                RatioFillGraphs = getRatioFillGraph(fLow, fUp, fbest ,0)
+            if(ExcOrInc=="Inc"):
+                RatioFillGraphs = getRatioFillGraph(fLow, fUp, fbest ,FracNormErrors["Inc%s"%j])
+            if DrawRatioPanel:
+                RatioFillGraphs["gFill"].SetFillColorAlpha(kGray,0.35)
+                RatioFillGraphs["gFill"].SetLineColor(kBlue)
+                RatioFillGraphs["gFill"].Draw("sameF")
+                RatioFillGraphs["gUp"].SetLineColor(kBlue)
+                RatioFillGraphs["gUp"].Draw("sameC")
+                RatioFillGraphs["gDown"].SetLineColor(kBlue)
+                RatioFillGraphs["gDown"].Draw("sameC")
+                RatioFillGraphs["gUp_norm"].SetLineColor(kRed)
+                RatioFillGraphs["gUp_norm"].Draw("sameC Y+")
+                RatioFillGraphs["gDown_norm"].SetLineColor(kRed)
+                RatioFillGraphs["gDown_norm"].Draw("sameC Y+")
+            else:
+                RatioFillGraphs["gFill"].SetFillColorAlpha(kGray,0.35)
+                RatioFillGraphs["gFill"].SetLineColor(kBlue)
+                RatioFillGraphs["gFill"].Draw("sameF")
+                RatioFillGraphs["gUp"].SetLineColor(kBlue)
+                RatioFillGraphs["gUp"].Draw("sameC")
+                RatioFillGraphs["gDown"].SetLineColor(kBlue)
+                RatioFillGraphs["gDown"].Draw("sameC")
+                RatioFillGraphs["gbest"].SetLineColor(kBlack)
+                RatioFillGraphs["gbest"].Draw("sameC")
+                RatioFillGraphs["gUp_norm"].SetLineColor(kRed)
+                RatioFillGraphs["gUp_norm"].Draw("sameC")
+                RatioFillGraphs["gDown_norm"].SetLineColor(kRed)
+                RatioFillGraphs["gDown_norm"].Draw("sameC")
+            stExcRatio.Draw("sameEP")
     else:
         fpulls = []
         for fnorm in functions:
@@ -791,10 +812,14 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         CMS_lumi.CMS_lumi(LargelowerPads[LargeLowerPadName], iPeriod, iPos)
         if("QCD" in PlotsFname):
             LowerLeg = TLegend(0.12, 0.65, 0.4, 0.8,"", "brNDC")
+            LowerLeg.AddEntry(stExcRatio,"QCD")
         else:
-            LowerLeg = TLegend(0.11, 0.65, 0.4, 0.85,"", "brNDC")
+            if(ExcOrInc=="Inc" and j>=8):
+                LowerLeg = TLegend(0.6, 0.65, 0.9, 0.85,"", "brNDC")
+            else:
+                LowerLeg = TLegend(0.11, 0.65, 0.4, 0.85,"", "brNDC")
+            LowerLeg.AddEntry(stExcRatio,"Data")
         LowerLeg.SetBorderSize(0)
-        LowerLeg.AddEntry(stExcRatio,"QCD")
         LowerLeg.AddEntry(RatioFillGraphs["gFill"],"Background Shape","fl")
         LowerLeg.AddEntry(RatioFillGraphs["gUp_norm"],"Systematic Uncertainty","l")
         LowerLeg.Draw("same")
@@ -1090,12 +1115,15 @@ BH10_MBH7 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Charybdis/BlackHole_BH1
 #BH10_MBH8 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackHole_BH10_MD4000_MBH8000_n2_13TeV_TuneCUETP8M1-charybdis_FlatTuple_1.root" ,'label':"C5_MD4_MBH8_n2","color":kCyan,"xsec":0.81238E-03}
 
 BH2_MBH8 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH2_MD-4000_MBH-8000_n-2_TuneCUETP8M1_13TeV-blackmax_FlatTuple_1.root" ,'label':"B2_MD4_MBH8_n2","color":kYellow ,"xsec":2.6425800E-03}
+Sphaleron= {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphaleron_NNPDF30_lo_as_0118_0_pythia8TuneCUETP8M1_FlatTuple_1.root" ,'label':"Sphaleron, PEF=1","color":kGreen ,"xsec":7.3E-03}
 lowMultiSignals ={
-"BH10_MBH6":BH10_MBH6
+#"BH10_MBH6":BH10_MBH6
+"Sphaleron":Sphaleron
 #"BH2_MBH8":BH2_MBH8
 }
 highMultiSignals={
-"BH10_MBH6":BH10_MBH6
+#"BH10_MBH6":BH10_MBH6
+"Sphaleron":Sphaleron
 #"BH2_MBH8":BH2_MBH8,
 }
 
