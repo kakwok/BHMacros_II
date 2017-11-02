@@ -50,8 +50,8 @@ rebin          = False   # Rebin from 50GeV to 100GeV
 WriteDataCards = False 
 DrawUncertainty= True 
 DrawRatioPanel = False 
-DrawPullPanel  = False 
-DrawSignal     = False 
+DrawPullPanel  = True 
+DrawSignal     = True 
 InjectSignal   = False 
 Lumi           = 35900
 #f_outlier     = null
@@ -61,6 +61,9 @@ chi2Table          = []
 chi2Table_head     = ["Name","Exc3/Exc4","chi2","ndof","chi2/ndof","chi2","full ndof","chi2up/ndof","integral(up)","fitResult"]
 chi2Table.append(chi2Table_head)
 NormTable          = []
+fitPamTable        = []
+fitPamTable_head   = ["Function","Exc3/Exc4","p0","p1","p2","p3","p4","p5"]
+fitPamTable.append(fitPamTable_head)
 NormTable_j        = []
 NormTable_head     = ["Multiplicity","region[TeV]","factor","percentage"]
 NormTable.append(NormTable_head)
@@ -393,9 +396,12 @@ def customfit(f, Sthist, ExcN):
         Sthist.Fit(f.GetName(), "Q0LRB", "", fitNormRanges.getLowerFitBound(ExcN), fitNormRanges.getUpperFitBound(ExcN) )
     r = Sthist.Fit(f.GetName(), "0LRB", "", fitNormRanges.getLowerFitBound(ExcN), fitNormRanges.getUpperFitBound(ExcN) )
     fClone = f.Clone()
-    pars=[]
+    pars=[0]*len(fitPamTable_head)
     for i in range(0,f.GetNpar()):
-        pars.append(f.GetParameter(i))
+        if i==0:
+            pars[i+2]="%.3e"%(f.GetParameter(i))
+        else:
+            pars[i+2]="%.2f"%(f.GetParameter(i))
     Chi2List.append(f.GetChisquare())
     chi2pNDF = f.GetChisquare()/ f.GetNDF()
     #Calculate chi2 for the full range with clone of f
@@ -429,13 +435,17 @@ def customfit(f, Sthist, ExcN):
         f_chi2.append( chi2full)
         chi2Table_row = [fname,"3", "%.3f"%(f.GetChisquare()),f.GetNDF(), "%.3f"%chi2pNDF,"%.3f"%chi2full, ndf_full, "%.3f"%chi2fullpNDF ,"%.3f"%UpperInt  ,int(r)]
         chi2Table.append(chi2Table_row)
+        pars[0] = fname
+        pars[1] = "3"
         
     if("exc4" in f.GetName()):
         fname = f.GetName().replace("_exc4","")
         chi2graphs_fit[fname].SetPoint( chi2graphs_fit[fname].GetN(), 4 ,chi2pNDF)
         chi2Table_row = [fname,"4", "%.3f"%(f.GetChisquare()), f.GetNDF(), "%.3f"%chi2pNDF,"%.3f"%chi2full, ndf_full, "%.3f"%chi2fullpNDF ,"%.3f"%UpperInt  ,int(r)]
         chi2Table.append(chi2Table_row)
-    print "Done fitting %s, result = %s, %s has parameters :"%( f.GetName(),int(r), f.GetName()) , pars
+        pars[0] = fname
+        pars[1] = "4"
+    fitPamTable.append(pars)
     print "Done fitting %s, %s has chi2perNDF = %.5f :"%(f.GetName(), f.GetName(), chi2pNDF)
     #for x in chi2chklist:
     #    print x["ST"],"%.3f"%x["chi2term"]
@@ -521,8 +531,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         stHist.GetXaxis().SetRangeUser(fitNormRanges.getLowerPlotRange("inc%i"%j),fitNormRanges.getUpperPlotRange("inc%i"%j) )
     
     stHist.GetXaxis().SetLabelSize(0)
-    stHist.SetMinimum(1e-1)
-    stHist.SetMaximum(3.5e3)
+    stHist.SetMinimum(1e-3)
+    #stHist.SetMinimum(1e-1)
     #stHist.SetMinimum(1e-4)
 
     chi2_list     = []
@@ -717,6 +727,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         stExcRatio.Add(fbest,-1)    # Subtract best fit
         stExcRatio.Divide(fbest,1)  # Divide by best fit   
         stExcRatio.GetYaxis().SetRangeUser(-1,1)
+        stExcRatio.GetYaxis().SetRangeUser(-0.5,0.5)
         if(ExcOrInc=="Inc" and j>=10):
             stExcRatio.GetYaxis().SetRangeUser(-3,3)
     stExcRatio.GetXaxis().SetLabelSize(0.1)
@@ -1114,23 +1125,36 @@ BH10_MBH6 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Charybdis/BlackHole_BH1
 BH10_MBH7 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Charybdis/BlackHole_BH10_MD4000_MBH7000_n2_13TeV_TuneCUETP8M1-charybdis_FlatTuple_1.root" ,'label':"C5_MD4_MBH7_n2","color":kGreen,"xsec":0.87735E-02}
 #BH10_MBH8 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackHole_BH10_MD4000_MBH8000_n2_13TeV_TuneCUETP8M1-charybdis_FlatTuple_1.root" ,'label':"C5_MD4_MBH8_n2","color":kCyan,"xsec":0.81238E-03}
 
+BH1_MBH8 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH1_MD-4000_MBH-8000_n-6_TuneCUETP8M1_13TeV-blackmax_FlatTuple_1.root"  ,'label':"B1 M_{D}=4 TeV,M_{BH}=8 TeV n=6" ,"color":kCyan   ,"xsec":2.0698000E-02}
+BH1_MBH9 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH1_MD-4000_MBH-9000_n-6_TuneCUETP8M1_13TeV-blackmax_FlatTuple_1.root"  ,'label':"B1 M_{D}=4 TeV,M_{BH}=9 TeV n=6" ,"color":kOrange ,"xsec":1.5369400E-03}
+BH1_MBH10= {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH1_MD-4000_MBH-10000_n-6_TuneCUETP8M1_13TeV-blackmax_FlatTuple_1.root" ,'label':"B1 M_{D}=4 TeV,M_{BH}=10 TeV n=6","color":kViolet ,"xsec":6.0149000E-05}
+
 BH2_MBH8 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH2_MD-4000_MBH-8000_n-2_TuneCUETP8M1_13TeV-blackmax_FlatTuple_1.root" ,'label':"B2_MD4_MBH8_n2","color":kYellow ,"xsec":2.6425800E-03}
 Sphaleron= {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphaleron_NNPDF30_lo_as_0118_0_pythia8TuneCUETP8M1_FlatTuple_1.root" ,'label':"Sphaleron, PEF=1","color":kGreen ,"xsec":7.3E-03}
 lowMultiSignals ={
-#"BH10_MBH6":BH10_MBH6
-"Sphaleron":Sphaleron
-#"BH2_MBH8":BH2_MBH8
+"BH1_MBH8":BH1_MBH8,
+"BH1_MBH9":BH1_MBH9,
+"BH1_MBH10":BH1_MBH10
 }
 highMultiSignals={
-#"BH10_MBH6":BH10_MBH6
-"Sphaleron":Sphaleron
-#"BH2_MBH8":BH2_MBH8,
+"Sphaleron":Sphaleron,
+"BH1_MBH8":BH1_MBH8,
+"BH1_MBH9":BH1_MBH9,
+"BH1_MBH10":BH1_MBH10
+
+}
+Exc7Signals ={
+"BH1_MBH8":BH1_MBH8,
+"BH1_MBH9":BH1_MBH9,
+"BH1_MBH10":BH1_MBH10
 }
 
 SignalLists={
 "lowMultiSignals":lowMultiSignals, 
-"highMultiSignals":highMultiSignals
+"highMultiSignals":highMultiSignals,
+"Exc7Signals":Exc7Signals
 }
+
 
 for j in range(2,12):
     if (argv[4]=="useMET"):
@@ -1191,6 +1215,8 @@ for j in range(2,12):
             NormAndDrawST(stExcHist,j,"Exc",stExc4Hist,True,SignalLists["lowMultiSignals"])
         if j<=5: 
             NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True,SignalLists["lowMultiSignals"])
+        elif j==7:
+            NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True,SignalLists["Exc7Signals"])
         else:
             NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True,SignalLists["highMultiSignals"])
     else:
@@ -1246,6 +1272,7 @@ leg.SetFillColor(0);
 leg.Draw()
 print tabulate(chi2Table,"firstrow")
 print tabulate(NormTable,"firstrow")
+print tabulate(fitPamTable,floatfmt=(".3e", ".2f"))
 #print tabulate(chi2Table,chi2Table_head,tablefmt="latex")
 #print tabulate(NormTable,NormTable_head,tablefmt="latex")
 mean = np.mean(np.array(f_integrals.values()))
