@@ -50,8 +50,8 @@ rebin          = False   # Rebin from 50GeV to 100GeV
 WriteDataCards = False 
 DrawUncertainty= True 
 DrawRatioPanel = False 
-DrawPullPanel  = True 
-DrawSignal     = True 
+DrawPullPanel  = False 
+DrawSignal     = False 
 InjectSignal   = False 
 Lumi           = 35900
 #f_outlier     = null
@@ -531,9 +531,9 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         stHist.GetXaxis().SetRangeUser(fitNormRanges.getLowerPlotRange("inc%i"%j),fitNormRanges.getUpperPlotRange("inc%i"%j) )
     
     stHist.GetXaxis().SetLabelSize(0)
-    stHist.SetMinimum(1e-3)
-    #stHist.SetMinimum(1e-1)
-    #stHist.SetMinimum(1e-4)
+    stHist.SetMinimum(1e-1)
+    if(j==10):
+        stHist.SetMinimum(1e-2)
 
     chi2_list     = []
     #chi2 deviation list
