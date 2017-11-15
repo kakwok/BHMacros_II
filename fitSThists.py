@@ -49,8 +49,8 @@ fitNormRanges.showNormRanges()
 rebin          = False   # Rebin from 50GeV to 100GeV
 WriteDataCards = False 
 DrawUncertainty= True 
-DrawRatioPanel = False 
-DrawPullPanel  = False 
+DrawRatioPanel = False    # must use with DrawUncertainty if switched to True
+DrawPullPanel  = True 
 DrawSignal     = False 
 InjectSignal   = False 
 Lumi           = 35900
@@ -68,11 +68,12 @@ NormTable_j        = []
 NormTable_head     = ["Multiplicity","region[TeV]","factor","percentage"]
 NormTable.append(NormTable_head)
 #Dict{"IncN":factor}
-NormFactors         = {}
-FracNormErrors      = {}
-
+NormFactors_exc2         = {}
+FracNormErrors_exc2      = {}
 NormFactors_exc4         = {}
 FracNormErrors_exc4      = {}
+NormFactors_exc3         = {}
+FracNormErrors_exc3      = {}
 STup = 9000
 def getratio(f1,f2):
     formula = "("+f1.GetExpFormula("p").Data() + ")/(" + f2.GetExpFormula("p").Data()+")-1"
@@ -322,6 +323,8 @@ def getNormalizedFunctionWithChi2(f, hist, ExcOrInc, j, STlow=0, STup=0):
     normBinTotal = 0;
     Total = 0;
 
+    if ("exc2" in f.GetName()):
+        normHist = stExc2Hist
     if ("exc3" in f.GetName()):
         normHist = stExc3Hist
     if ("exc4" in f.GetName()):
@@ -354,10 +357,14 @@ def getNormalizedFunctionWithChi2(f, hist, ExcOrInc, j, STlow=0, STup=0):
     FracNormErr    = sqrt(1.0/sqrt(histBinTotal)+1.0/sqrt(normBinTotal))
     NormErr        = FracNormErr * normfactor 
     if(ExcOrInc=="Inc") :
-        if ("exc3" in f.GetName() and not("Inc%s"%j in NormFactors) ):
+        if ("exc2" in f.GetName() and not("Inc%s"%j in NormFactors_exc2) ):
+            #NormTable.append([">=%s"%j,"%s-%s"%(LowerNormBound/1000,UpperNormBound/1000),"%.5f+-%.5f"%(normfactor,NormErr),"%.1f"%(FracNormErr*100)+"%"])
+            NormFactors_exc2["Inc%s"%j]    = normfactor
+            FracNormErrors_exc2["Inc%s"%j] = FracNormErr 
+        if ("exc3" in f.GetName() and not("Inc%s"%j in NormFactors_exc3) ):
             NormTable.append([">=%s"%j,"%s-%s"%(LowerNormBound/1000,UpperNormBound/1000),"%.5f+-%.5f"%(normfactor,NormErr),"%.1f"%(FracNormErr*100)+"%"])
-            NormFactors["Inc%s"%j]    = normfactor
-            FracNormErrors["Inc%s"%j] = FracNormErr 
+            NormFactors_exc3["Inc%s"%j]    = normfactor
+            FracNormErrors_exc3["Inc%s"%j] = FracNormErr 
         if ("exc4" in f.GetName() and not("Inc%s"%j in NormFactors_exc4) ):
             NormFactors_exc4["Inc%s"%j]    = normfactor
             FracNormErrors_exc4["Inc%s"%j] = FracNormErr 
@@ -428,6 +435,16 @@ def customfit(f, Sthist, ExcN):
     #    chi2sum += pow( (y - f.Eval(x) )/errY  ,2)
     #    chi2chklist.append({"ST":x,"chi2term":pow( (y - f.Eval(x) )/errY  ,2)})
  
+    if("exc2" in f.GetName()):
+        fname = f.GetName().replace("_exc2","")
+        chi2graphs_fit[fname].SetPoint( chi2graphs_fit[fname].GetN(), 2, chi2pNDF)
+        #f_integrals[fname] = UpperInt
+        f_chi2.append( chi2full)
+        chi2Table_row = [fname,"2", "%.3f"%(f.GetChisquare()),f.GetNDF(), "%.3f"%chi2pNDF,"%.3f"%chi2full, ndf_full, "%.3f"%chi2fullpNDF ,"%.3f"%UpperInt  ,int(r)]
+        chi2Table.append(chi2Table_row)
+        pars[0] = fname
+        pars[1] = "2"
+
     if("exc3" in f.GetName()):
         fname = f.GetName().replace("_exc3","")
         chi2graphs_fit[fname].SetPoint( chi2graphs_fit[fname].GetN(), 3, chi2pNDF)
@@ -572,8 +589,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     if (ExcOrInc=="Exc"):
         fLow_norm,fUp_norm= getNormErrorGraphs( fLow, fUp, fbest, 0 ,"Abs")
     if (ExcOrInc=="Inc"):
-        print "In N>=%i, fractional errors to be %s\n"%(j,FracNormErrors["Inc%s"%j])
-        fLow_norm,fUp_norm= getNormErrorGraphs( fLow, fUp, fbest, FracNormErrors["Inc%s"%j] ,"Abs")
+        print "In N>=%i, fractional errors to be %s\n"%(j,FracNormErrors_exc3["Inc%s"%j])
+        fLow_norm,fUp_norm= getNormErrorGraphs( fLow, fUp, fbest, FracNormErrors_exc3["Inc%s"%j] ,"Abs")
         #fLow_norm,fUp_norm= getNormErrorGraphs( fLow, fUp, fbest, 0 ,"Abs")
     
     if DrawUncertainty:
@@ -690,7 +707,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
             stExcRatio.GetYaxis().SetTitle("Ratio of n=%i to n=%s"%(j,stRefHist.GetName()[6]))
         if(ExcOrInc=="Inc"):
             stExcRatio.GetYaxis().SetTitle("Ratio of n>=%i to n=%s"%(j,stRefHist.GetName()[6]))
-            if ("Exc03" in stRefHist.GetName()):  stRefClone.Scale(NormFactors["Inc%s"%j])
+            if ("Exc02" in stRefHist.GetName()):  stRefClone.Scale(NormFactors_exc2["Inc%s"%j])
+            if ("Exc03" in stRefHist.GetName()):  stRefClone.Scale(NormFactors_exc3["Inc%s"%j])
             if ("Exc04" in stRefHist.GetName()):  stRefClone.Scale(NormFactors_exc4["Inc%s"%j])
 
         if not stRefHist.GetBinWidth(1)==stHist.GetBinWidth(1): 
@@ -727,7 +745,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         stExcRatio.Add(fbest,-1)    # Subtract best fit
         stExcRatio.Divide(fbest,1)  # Divide by best fit   
         stExcRatio.GetYaxis().SetRangeUser(-1,1)
-        stExcRatio.GetYaxis().SetRangeUser(-0.5,0.5)
+        #stExcRatio.GetYaxis().SetRangeUser(-0.5,0.5)
         if(ExcOrInc=="Inc" and j>=10):
             stExcRatio.GetYaxis().SetRangeUser(-3,3)
     stExcRatio.GetXaxis().SetLabelSize(0.1)
@@ -752,7 +770,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
             if(ExcOrInc=="Exc"):
                 RatioFillGraphs = getRatioFillGraph(fLow, fUp, fbest ,0)
             if(ExcOrInc=="Inc"):
-                RatioFillGraphs = getRatioFillGraph(fLow, fUp, fbest ,FracNormErrors["Inc%s"%j])
+                RatioFillGraphs = getRatioFillGraph(fLow, fUp, fbest ,FracNormErrors_exc3["Inc%s"%j])
             if DrawRatioPanel:
                 RatioFillGraphs["gFill"].SetFillColorAlpha(kGray,0.35)
                 RatioFillGraphs["gFill"].SetLineColor(kBlue)
@@ -970,6 +988,7 @@ for fname in fnames:
     chi2graphs_fit[fname] =TGraph()
 
 AllFitList=[f3_list,f4_list]
+#AllFitList=[f2_list,f3_list]
 
 for flist in AllFitList:
     for fname in sorted(flist.iterkeys()):
@@ -1119,6 +1138,7 @@ for flist in AllFitList:
             customfit( flist[fname], refhist,"exc4")
 
 fbestName = PickBestFit(f_integrals)
+print "fBestName is chosen to be ",fbestName
 print "The minimum chi2 is %s %.3f" % (Chi2List.index(min(Chi2List)),min(Chi2List))
 
 BH10_MBH6 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Charybdis/BlackHole_BH10_MD4000_MBH6000_n2_13TeV_TuneCUETP8M1-charybdis_FlatTuple_1.root" ,'label':"C5_MD4_MBH6_n2","color":kViolet,"xsec":0.69784E-01}
@@ -1209,6 +1229,8 @@ for j in range(2,12):
     if j>6:
         stIncHist.Rebin()
     if DrawSignal:
+        if j==2:
+            NormAndDrawST(stExcHist,j,"Exc",stExc2Hist,True,SignalLists["lowMultiSignals"])
         if j==3:
             NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,True,SignalLists["lowMultiSignals"])
         if j==4:
@@ -1220,10 +1242,13 @@ for j in range(2,12):
         else:
             NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True,SignalLists["highMultiSignals"])
     else:
+        #if j==2:
+        #    NormAndDrawST(stExcHist,j,"Exc",stExc2Hist,True)
         if j==3:
             NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,True)
         if j==4:
             NormAndDrawST(stExcHist,j,"Exc",stExc4Hist,True)
+        #NormAndDrawST(stIncHist,j,"Inc",stExc2Hist,True)
         NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True)
         #NormAndDrawST(stIncHist,j,"Inc",stExc4Hist,True)
 
