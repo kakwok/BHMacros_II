@@ -48,9 +48,9 @@ fitNormRanges.showFitRanges()
 fitNormRanges.showNormRanges()
 rebin          = False   # Rebin from 50GeV to 100GeV
 WriteDataCards = False 
-DrawUncertainty= True 
+DrawUncertainty= False 
 DrawRatioPanel = False    # must use with DrawUncertainty if switched to True
-DrawPullPanel  = True 
+DrawPullPanel  = False 
 DrawSignal     = False 
 InjectSignal   = False 
 Lumi           = 35900
@@ -626,6 +626,10 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         for fnorm in functions:
             if(fnorm.GetName()==fbest.GetName()):
                 leg2.AddEntry(fnorm,fnorm.GetName()+"(best-fit)","l")
+                fnorm.SetLineColor(kBlue)
+                fnorm.SetLineStyle(1)
+                fnorm.SetLineWidth(2)
+                fnorm.Draw("SAME")
             else:
                 leg2.AddEntry(fnorm,fnorm.GetName(),"l")
         leg2.SetTextSize(0.03)
@@ -1297,7 +1301,7 @@ leg.SetFillColor(0);
 leg.Draw()
 print tabulate(chi2Table,"firstrow")
 print tabulate(NormTable,"firstrow")
-print tabulate(fitPamTable,floatfmt=(".3e", ".2f"))
+print tabulate(fitPamTable,floatfmt=(".3e", ".2f"),tablefmt="latex")
 #print tabulate(chi2Table,chi2Table_head,tablefmt="latex")
 #print tabulate(NormTable,NormTable_head,tablefmt="latex")
 mean = np.mean(np.array(f_integrals.values()))
