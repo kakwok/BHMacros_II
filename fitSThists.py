@@ -620,7 +620,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         fbest.Draw("SAME")
     else:
         # Draw a legend for all functions
-        leg2 = TLegend(0.5,0.5, 0.87, 0.68,"", "brNDC")
+        leg2 = TLegend(0.5,0.47, 0.87, 0.78,"", "brNDC")
         leg2.SetNColumns(2)
         leg2.SetBorderSize(0)
         for fnorm in functions:
@@ -640,6 +640,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     if(DrawSignal):
         #Use larger legend for signal
         legend = TLegend(0.55, 0.6, 0.8, 0.85,"", "brNDC")
+    elif(not DrawUncertainty):
+        legend = TLegend(0.55, 0.8, 0.8, 0.9,"", "brNDC")
     else:
         legend = TLegend(0.6, 0.7, 0.8, 0.85,"", "brNDC")
     legend.SetTextSize(0.04);
