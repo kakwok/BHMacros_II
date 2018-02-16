@@ -49,7 +49,7 @@ fitNormRanges.showNormRanges()
 rebin          = False   # Rebin from 50GeV to 100GeV
 WriteDataCards = False 
 DrawUncertainty= False 
-DrawRatioPanel = False    # must use with DrawUncertainty if switched to True
+DrawRatioPanel = False   # must use with DrawUncertainty if switched to True
 DrawPullPanel  = False 
 DrawSignal     = False 
 InjectSignal   = False 
@@ -548,7 +548,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         stHist.GetXaxis().SetRangeUser(fitNormRanges.getLowerPlotRange("inc%i"%j),fitNormRanges.getUpperPlotRange("inc%i"%j) )
     
     stHist.GetXaxis().SetLabelSize(0)
-    stHist.SetMinimum(1e-1)
+    #stHist.SetMinimum(1e-1)
+    stHist.SetMinimum(1e-4)
     if(j==10):
         stHist.SetMinimum(1e-2)
 
@@ -563,10 +564,12 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
             chi2_list.append(chi2pDOF)
             chi2_devlist.append(abs(chi2pDOF-1))
             if(ExcOrInc=="Exc"):
+                #if((ExcOrInc+str(3)).lower() in fname): # this will select only Exc3 fits for the envelope
                 if((ExcOrInc+str(j)).lower() in fname):
                     functions.append( fnorm )
             else:
-                functions.append( fnorm )
+                #if(("Exc"+str(3)).lower() in fname):   # this will select only Exc3 fits for envelope
+                    functions.append( fnorm )
             if(ExcOrInc=="Inc"):
                 chi2graphs_norm[fname].SetPoint( chi2graphs_norm[fname].GetN(), j , chi2pDOF)
             if not DrawUncertainty:
@@ -1254,6 +1257,7 @@ for j in range(2,12):
             NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,True)
         if j==4:
             NormAndDrawST(stExcHist,j,"Exc",stExc4Hist,True)
+            #NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,True)
         #NormAndDrawST(stIncHist,j,"Inc",stExc2Hist,True)
         NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True)
         #NormAndDrawST(stIncHist,j,"Inc",stExc4Hist,True)
