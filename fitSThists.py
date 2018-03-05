@@ -9,12 +9,13 @@ import CMS_lumi,tdrstyle
 import numpy as np
 from tabulate import tabulate
 import copy
+import json
 
 ##################################################################
 tdrstyle.setTDRStyle()
 gStyle.SetOptFit(0)
 CMS_lumi.lumi_13TeV = "35.9 fb^{-1}"
-CMS_lumi.writeExtraText = 1
+CMS_lumi.writeExtraText = 0
 CMS_lumi.extraText = "Preliminary"
 CMS_lumi.lumi_sqrtS = "13 TeV" # used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)
 iPos = 11
@@ -46,13 +47,16 @@ chi2graphs_fit    = {}
 fitNormRanges = FitAndNormRange(argv[3])
 fitNormRanges.showFitRanges()
 fitNormRanges.showNormRanges()
-rebin          = False   # Rebin from 50GeV to 100GeV
-WriteDataCards = False 
-DrawUncertainty= False 
-DrawRatioPanel = False   # must use with DrawUncertainty if switched to True
-DrawPullPanel  = False 
-DrawSignal     = False 
-InjectSignal   = False 
+plotSettings = json.load(open(argv[4])) 
+
+rebin          = plotSettings['rebin']   # Rebin from 50GeV to 100GeV
+WriteDataCards = plotSettings['WriteDataCards'] 
+DrawUncertainty= plotSettings['DrawUncertainty'] 
+DrawRatioPanel = plotSettings['DrawRatioPanel']   # Draw (data-fit)/fit in ratio plots, must use with DrawUncertainty if switched to True
+DrawPullPanel  = plotSettings['DrawPullPanel']    # Draw pull in ratio plots
+DrawSignal     = plotSettings['DrawSignal'] 
+InjectSignal   = plotSettings['InjectSignal'] 
+useMET         = plotSettings['useMET']
 Lumi           = 35900
 #f_outlier     = null
 
@@ -548,10 +552,14 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         stHist.GetXaxis().SetRangeUser(fitNormRanges.getLowerPlotRange("inc%i"%j),fitNormRanges.getUpperPlotRange("inc%i"%j) )
     
     stHist.GetXaxis().SetLabelSize(0)
-    #stHist.SetMinimum(1e-1)
-    stHist.SetMinimum(1e-4)
-    if(j==10):
-        stHist.SetMinimum(1e-2)
+    if 'ymin' in plotSettings.keys():
+        stHist.SetMinimum(plotSettings['ymin'])
+    else:
+        stHist.SetMinimum(1e-1)
+    #if(j==10):
+    #    stHist.SetMinimum(1e-2)
+    if 'ymax' in plotSettings.keys():
+        stHist.SetMaximum(plotSettings['ymax'])
 
     chi2_list     = []
     #chi2 deviation list
@@ -642,7 +650,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
 
     if(DrawSignal):
         #Use larger legend for signal
-        legend = TLegend(0.55, 0.6, 0.8, 0.85,"", "brNDC")
+        legend = TLegend(0.50, 0.6, 0.8, 0.85,"", "brNDC")
     elif(not DrawUncertainty):
         legend = TLegend(0.55, 0.8, 0.8, 0.9,"", "brNDC")
     else:
@@ -659,9 +667,9 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
             legend.AddEntry(stHist,"Data: multiplicity =%i"%j,"ep");
     if(ExcOrInc=="Inc"):
         if("QCD" in PlotsFname):
-            legend.AddEntry(stHist,"QCD: multiplicity #geq%i"%j,"ep");
+            legend.AddEntry(stHist,"QCD: multiplicity #geq %i"%j,"ep");
         else:
-            legend.AddEntry(stHist,"Data: multiplicity #geq%i"%j,"ep");
+            legend.AddEntry(stHist,"Data: multiplicity #geq %i"%j,"ep");
     if DrawUncertainty:
         legend.AddEntry(fillGraph,"Background Shape","fl");
         legend.AddEntry(fLow_norm,"Systematic Uncertainties","l");
@@ -1074,7 +1082,7 @@ for flist in AllFitList:
 ##############################################
 ##  Fit the ST histogram, get the functions
 ##############################################
-if(argv[4]=="useMET"):
+if(useMET):
     if( "ST_tight" in PlotsDir.GetName()):
         histname02 = ("stExc02Hist_tight")
         histname03 = ("stExc03Hist_tight")
@@ -1083,7 +1091,7 @@ if(argv[4]=="useMET"):
         histname02 = ("stExc02Hist")
         histname03 = ("stExc03Hist")
         histname04 = ("stExc04Hist")
-if(argv[4]=="useMHT"):
+if(not useMET):
     if( "ST_tight" in PlotsDir.GetName()):
         histname02 = ("stExc02HistMHT_tight")
         histname03 = ("stExc03HistMHT_tight")
@@ -1154,12 +1162,12 @@ BH10_MBH6 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Charybdis/BlackHole_BH1
 BH10_MBH7 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Charybdis/BlackHole_BH10_MD4000_MBH7000_n2_13TeV_TuneCUETP8M1-charybdis_FlatTuple_1.root" ,'label':"C5_MD4_MBH7_n2","color":kGreen,"xsec":0.87735E-02}
 #BH10_MBH8 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackHole_BH10_MD4000_MBH8000_n2_13TeV_TuneCUETP8M1-charybdis_FlatTuple_1.root" ,'label':"C5_MD4_MBH8_n2","color":kCyan,"xsec":0.81238E-03}
 
-BH1_MBH8 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH1_MD-4000_MBH-8000_n-6_TuneCUETP8M1_13TeV-blackmax_FlatTuple_1.root"  ,'label':"B1 M_{D}=4 TeV,M_{BH}=8 TeV n=6" ,"color":kCyan   ,"xsec":2.0698000E-02}
-BH1_MBH9 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH1_MD-4000_MBH-9000_n-6_TuneCUETP8M1_13TeV-blackmax_FlatTuple_1.root"  ,'label':"B1 M_{D}=4 TeV,M_{BH}=9 TeV n=6" ,"color":kOrange ,"xsec":1.5369400E-03}
-BH1_MBH10= {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH1_MD-4000_MBH-10000_n-6_TuneCUETP8M1_13TeV-blackmax_FlatTuple_1.root" ,'label':"B1 M_{D}=4 TeV,M_{BH}=10 TeV n=6","color":kViolet ,"xsec":6.0149000E-05}
+BH1_MBH8 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH1_MD-4000_MBH-8000_n-6_TuneCUETP8M1_13TeV-blackmax_FlatTuple_1.root"  ,'label':"B1: M_{D}=4 TeV, M_{BH}=8 TeV, n=6" ,"color":kCyan   ,"xsec":2.0698000E-02}
+BH1_MBH9 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH1_MD-4000_MBH-9000_n-6_TuneCUETP8M1_13TeV-blackmax_FlatTuple_1.root"  ,'label':"B1: M_{D}=4 TeV, M_{BH}=9 TeV, n=6" ,"color":kOrange ,"xsec":1.5369400E-03}
+BH1_MBH10= {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH1_MD-4000_MBH-10000_n-6_TuneCUETP8M1_13TeV-blackmax_FlatTuple_1.root" ,'label':"B1: M_{D}=4 TeV, M_{BH}=10 TeV, n=6","color":kViolet ,"xsec":6.0149000E-05}
 
 BH2_MBH8 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH2_MD-4000_MBH-8000_n-2_TuneCUETP8M1_13TeV-blackmax_FlatTuple_1.root" ,'label':"B2_MD4_MBH8_n2","color":kYellow ,"xsec":2.6425800E-03}
-Sphaleron= {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphaleron_NNPDF30_lo_as_0118_0_pythia8TuneCUETP8M1_FlatTuple_1.root" ,'label':"Sphaleron, PEF=1","color":kGreen ,"xsec":7.3E-03}
+Sphaleron= {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphaleron_NNPDF30_lo_as_0118_0_pythia8TuneCUETP8M1_FlatTuple_1.root" ,'label':"Sphaleron, E_{Sph} = 9 TeV, PEF = 1","color":kGreen ,"xsec":7.3E-03}
 lowMultiSignals ={
 "BH1_MBH8":BH1_MBH8,
 "BH1_MBH9":BH1_MBH9,
@@ -1170,23 +1178,26 @@ highMultiSignals={
 "BH1_MBH8":BH1_MBH8,
 "BH1_MBH9":BH1_MBH9,
 "BH1_MBH10":BH1_MBH10
-
 }
 Exc7Signals ={
 "BH1_MBH8":BH1_MBH8,
 "BH1_MBH9":BH1_MBH9,
 "BH1_MBH10":BH1_MBH10
 }
+Exc9Signals ={
+"Sphaleron":Sphaleron
+}
 
 SignalLists={
 "lowMultiSignals":lowMultiSignals, 
 "highMultiSignals":highMultiSignals,
-"Exc7Signals":Exc7Signals
+"Exc7Signals":Exc7Signals,
+"Exc9Signals":Exc9Signals
 }
 
 
 for j in range(2,12):
-    if (argv[4]=="useMET"):
+    if (useMET):
         if("ST_tight" in PlotsDir.GetName()):
            ExcHistName    =("stExc%02iHist_tight"%j)
            IncHistName    =("stInc%02iHist_tight"%j)
@@ -1199,8 +1210,7 @@ for j in range(2,12):
            Exc02HistName  =("stExc02Hist")
            Exc03HistName  =("stExc03Hist")
            Exc04HistName  =("stExc04Hist")
-          
-    if (argv[4]=="useMHT"):
+    if (not useMET):
         if("ST_tight" in PlotsDir.GetName()):
            ExcHistName    =("stExc%02iHistMHT_tight"%j)
            IncHistName    =("stInc%02iHistMHT_tight"%j)
@@ -1238,8 +1248,9 @@ for j in range(2,12):
     if j>6:
         stIncHist.Rebin()
     if DrawSignal:
-        if j==2:
-            NormAndDrawST(stExcHist,j,"Exc",stExc2Hist,True,SignalLists["lowMultiSignals"])
+        #if j==2:
+        #    NormAndDrawST(stExcHist,j,"Exc",stExc2Hist,True)
+        #    NormAndDrawST(stExcHist,j,"Exc",stExc2Hist,True,SignalLists["lowMultiSignals"])
         if j==3:
             NormAndDrawST(stExcHist,j,"Exc",stExc3Hist,True,SignalLists["lowMultiSignals"])
         if j==4:
@@ -1248,6 +1259,8 @@ for j in range(2,12):
             NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True,SignalLists["lowMultiSignals"])
         elif j==7:
             NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True,SignalLists["Exc7Signals"])
+        elif j==9:
+            NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True,SignalLists["Exc9Signals"])
         else:
             NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True,SignalLists["highMultiSignals"])
     else:

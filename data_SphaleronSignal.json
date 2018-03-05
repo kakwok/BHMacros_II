@@ -1,0 +1,12 @@
+{
+   "DrawUncertainty": true,
+   "DrawRatioPanel" : false,
+   "DrawPullPanel"  : true,
+   "DrawSignal"     : true,
+   "InjectSignal"   : false,
+   "WriteDataCards" : false,
+   "rebin"          : false,
+   "useMET"         : true,
+   "ymax"           : 5e3,
+   "ymin"           : 1e-1
+}
