@@ -537,8 +537,15 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     upperPads[UpperPadName].cd()
     upperPads[UpperPadName].SetLogy(1)
     stHist.SetTitle("")
-    stHist.GetYaxis().SetTitle("Events/%i GeV"%stHist.GetBinWidth(1))
+    if stHist.GetBinWidth(1)==50:
+        stHist.GetYaxis().SetTitle("Events/0.05 TeV")
+    else:
+        stHist.GetYaxis().SetTitle("Events/0.1 TeV")
+    stHist.GetYaxis().SetTitleSize(0.05)
+    stHist.GetYaxis().SetTitleOffset(0.95)
+    stHist.GetYaxis().SetLabelSize(0.06)
     stHist.SetMarkerColor(kBlack)
+    stHist.SetLineColor(kBlack)
     stHist.SetMarkerStyle(8)
     stHist.SetMarkerSize(0.7)
     #stHist.Sumw2(False)
@@ -555,7 +562,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     if 'ymin' in plotSettings.keys():
         stHist.SetMinimum(plotSettings['ymin'])
     else:
-        stHist.SetMinimum(1e-1)
+        stHist.SetMinimum(2e-1)
     #if(j==10):
     #    stHist.SetMinimum(1e-2)
     if 'ymax' in plotSettings.keys():
@@ -669,22 +676,24 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     elif(not DrawUncertainty):
         legend = TLegend(0.55, 0.8, 0.8, 0.9,"", "brNDC")
     else:
-        legend = TLegend(0.6, 0.7, 0.8, 0.85,"", "brNDC")
-    legend.SetTextSize(0.04);
+        legend = TLegend(0.50, 0.5, 0.8, 0.85,"", "brNDC")
+    legend.SetTextSize(0.05);
     legend.SetLineWidth(1);
     legend.SetBorderSize(0);
     legend.SetFillStyle(1001);
     legend.SetFillColor(10);
     if(ExcOrInc=="Exc"):
+        legend.SetHeader("Multiplicity =%i"%j);
         if("QCD" in PlotsFname):
-            legend.AddEntry(stHist,"QCD: multiplicity =%i"%j,"ep");
+            legend.AddEntry(stHist,"QCD","ep");
         else:
-            legend.AddEntry(stHist,"Data: multiplicity =%i"%j,"ep");
+            legend.AddEntry(stHist,"Data","ep");
     if(ExcOrInc=="Inc"):
+        legend.SetHeader("Multiplicity #geq %i"%j);
         if("QCD" in PlotsFname):
-            legend.AddEntry(stHist,"QCD: multiplicity #geq %i"%j,"ep");
+            legend.AddEntry(stHist,"QCD","ep");
         else:
-            legend.AddEntry(stHist,"Data: multiplicity #geq %i"%j,"ep");
+            legend.AddEntry(stHist,"Data","ep");
     if DrawUncertainty:
         legend.AddEntry(fillGraph,"Background Shape","fl");
         legend.AddEntry(fLow_norm,"Systematic Uncertainties","l");
@@ -727,9 +736,10 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     #LowerPadName = "%s%02iratiopad"%(ExcOrInc,j)
     LowerPadName = canvasName + "_ratiopad" 
     STcomparisons[canvasName].cd()
-    lowerPads[LowerPadName] = (TPad(LowerPadName, "ratiopad1", 0, 0.04, 1, 0.3))
-    lowerPads[LowerPadName].SetTopMargin(0.1)
-    lowerPads[LowerPadName].SetBottomMargin(0.25)
+    lowerPads[LowerPadName] = (TPad(LowerPadName, "ratiopad1", 0, 0.02, 1, 0.3))
+    lowerPads[LowerPadName].SetTopMargin(0.05)
+    lowerPads[LowerPadName].SetBottomMargin(0.3)
+    lowerPads[LowerPadName].SetGridy(1)
     lowerPads[LowerPadName].Draw()
     lowerPads[LowerPadName].cd()
 
@@ -784,31 +794,37 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         #stExcRatio.GetYaxis().SetRangeUser(-0.5,0.5)
         if(ExcOrInc=="Inc" and j>=10):
             stExcRatio.GetYaxis().SetRangeUser(-3,3)
-    stExcRatio.GetXaxis().SetLabelSize(0.1)
-    stExcRatio.GetXaxis().SetTitleSize(0.1)
-    stExcRatio.GetXaxis().SetTitle("S_{T} (GeV)")
-    stExcRatio.GetYaxis().SetLabelSize(.075)
-    stExcRatio.GetYaxis().SetTitleSize(.1)
-    stExcRatio.GetYaxis().SetTitleOffset(.3)
+    stExcRatio.GetXaxis().SetLabelSize(0.15)
+    stExcRatio.GetXaxis().SetTitleSize(0.15)
+    stExcRatio.GetXaxis().SetTitle("S_{T} [TeV]")
+    
+    stExcRatio.GetYaxis().SetLabelSize(0.11)
+    stExcRatio.GetYaxis().SetTitleSize(0.12)
+    stExcRatio.GetYaxis().SetTitleOffset(0.25)
     stExcRatio.SetTitle("")
     stExcRatio.SetMarkerColor(kBlack)
     stExcRatio.SetMarkerStyle(8)
     stExcRatio.SetMarkerSize(0.7)
-
-    if DrawPullPanel:
-        stExcRatio.Draw("HIST")
-    else:
-        stExcRatio.Draw("EP")
-    stExcRatio.SetStats(0)
     gPad.Update()
+    x1 = x1/1000
+    x2 = x2/1000
     y1 = gPad.GetUymin()
     y2 = gPad.GetUymax()
     lowerbox  = TBox(x1,y1,x2,y2)
     lowerbox.SetFillColorAlpha(kYellow,0.3)
     lowerbox.SetFillStyle(3002)
     lowerbox.Draw("same")
-
-
+    axis = stExcRatio.GetXaxis()
+    scale = 1E-3
+    axis.Set(axis.GetNbins(), axis.GetXmin()*scale, axis.GetXmax()*scale)
+    axis.SetDecimals(1)
+    gPad.Update()
+  
+    if DrawPullPanel:
+        stExcRatio.Draw("HIST")
+    else:
+        stExcRatio.Draw("EP")
+    stExcRatio.SetStats(0)
 
     #Draw Fit uncertainty
     if DrawUncertainty:
@@ -843,6 +859,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
                 RatioFillGraphs["gUp_norm"].Draw("sameC")
                 RatioFillGraphs["gDown_norm"].SetLineColor(kRed)
                 RatioFillGraphs["gDown_norm"].Draw("sameC")
+
             stExcRatio.Draw("sameEP")
     else:
         fpulls = []
@@ -899,6 +916,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         LowerLeg.AddEntry(RatioFillGraphs["gUp_norm"],"Systematic Uncertainty","l")
         LowerLeg.Draw("same")
         LargeRatioCanvas.Write()
+
 
 
     if (WriteDataCards and ExcOrInc=="Inc"):
