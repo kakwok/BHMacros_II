@@ -598,17 +598,32 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     fLow,fUp  = getEnvelopeFunctions( fbest, functions, 2500, 11000, "shade")
     fillGraph = getFillGraph( fLow, fUp )
     if (ExcOrInc=="Exc"):
+        x1   = fitNormRanges.getLowerFitBound("exc%i"%j)
+        y1   = plotSettings['ymin']
+        x2   = fitNormRanges.getUpperFitBound("exc%i"%j)
+        gPad.Update()
+        y2   = 10**gPad.GetUymax()
         fLow_norm,fUp_norm= getNormErrorGraphs( fLow, fUp, fbest, 0 ,"Abs")
     if (ExcOrInc=="Inc"):
+        x1   = fitNormRanges.getLowerNormBound("inc%i"%j)
+        y1   = plotSettings['ymin']
+        x2   = fitNormRanges.getUpperNormBound("inc%i"%j)
+        gPad.Update()
+        y2   = 10**gPad.GetUymax()
         print "In N>=%i, fractional errors to be %s\n"%(j,FracNormErrors_exc3["Inc%s"%j])
         fLow_norm,fUp_norm= getNormErrorGraphs( fLow, fUp, fbest, FracNormErrors_exc3["Inc%s"%j] ,"Abs")
         #fLow_norm,fUp_norm= getNormErrorGraphs( fLow, fUp, fbest, 0 ,"Abs")
+    box  = TBox(x1,y1,x2,y2)
+    box.SetFillColorAlpha(kYellow,0.3)
+    box.SetFillStyle(3002)
     
     if DrawUncertainty:
         fillGraph.SetFillColorAlpha(kGray,0.35)
         fillGraph.SetLineColor(kBlue)
         fillGraph.Draw("sameF")
         stHist.Draw("sameEP")
+        box.Draw("same")
+
         fUp.SetLineColor(kBlue)
         fUp.SetLineStyle(1)
         fUp.SetLineWidth(1)
@@ -673,6 +688,10 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     if DrawUncertainty:
         legend.AddEntry(fillGraph,"Background Shape","fl");
         legend.AddEntry(fLow_norm,"Systematic Uncertainties","l");
+        if (ExcOrInc=="Inc"):
+            legend.AddEntry(box,"Normalization region","f");
+        if (ExcOrInc=="Exc"):
+            legend.AddEntry(box,"Fit region","f");
 
     if(not Signals==None and DrawSignal==True):
         print "Injecting signal models = ", Signals.keys()
@@ -775,11 +794,21 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     stExcRatio.SetMarkerColor(kBlack)
     stExcRatio.SetMarkerStyle(8)
     stExcRatio.SetMarkerSize(0.7)
+
     if DrawPullPanel:
         stExcRatio.Draw("HIST")
     else:
         stExcRatio.Draw("EP")
     stExcRatio.SetStats(0)
+    gPad.Update()
+    y1 = gPad.GetUymin()
+    y2 = gPad.GetUymax()
+    lowerbox  = TBox(x1,y1,x2,y2)
+    lowerbox.SetFillColorAlpha(kYellow,0.3)
+    lowerbox.SetFillStyle(3002)
+    lowerbox.Draw("same")
+
+
 
     #Draw Fit uncertainty
     if DrawUncertainty:
