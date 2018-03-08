@@ -8,5 +8,5 @@
    "rebin"          : false,
    "useMET"         : true,
    "ymax"           : 5e3,
-   "ymin"           : 1e-1
+   "ymin"           : 2e-1
 }
