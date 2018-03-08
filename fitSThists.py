@@ -805,26 +805,20 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     stExcRatio.SetMarkerColor(kBlack)
     stExcRatio.SetMarkerStyle(8)
     stExcRatio.SetMarkerSize(0.7)
-    gPad.Update()
-    x1 = x1/1000
-    x2 = x2/1000
-    y1 = gPad.GetUymin()
-    y2 = gPad.GetUymax()
-    lowerbox  = TBox(x1,y1,x2,y2)
-    lowerbox.SetFillColorAlpha(kYellow,0.3)
-    lowerbox.SetFillStyle(3002)
-    lowerbox.Draw("same")
-    axis = stExcRatio.GetXaxis()
-    scale = 1E-3
-    axis.Set(axis.GetNbins(), axis.GetXmin()*scale, axis.GetXmax()*scale)
-    axis.SetDecimals(1)
-    gPad.Update()
-  
+      
     if DrawPullPanel:
         stExcRatio.Draw("HIST")
     else:
         stExcRatio.Draw("EP")
     stExcRatio.SetStats(0)
+    axis = stExcRatio.GetXaxis()
+    scale = 1E-3
+    axis.Set(axis.GetNbins(), axis.GetXmin()*scale, axis.GetXmax()*scale)
+    axis.SetDecimals(1)
+    x1 = x1/1000
+    x2 = x2/1000
+    gPad.Update()
+
 
     #Draw Fit uncertainty
     if DrawUncertainty:
@@ -859,7 +853,6 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
                 RatioFillGraphs["gUp_norm"].Draw("sameC")
                 RatioFillGraphs["gDown_norm"].SetLineColor(kRed)
                 RatioFillGraphs["gDown_norm"].Draw("sameC")
-
             stExcRatio.Draw("sameEP")
     else:
         fpulls = []
@@ -875,7 +868,15 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         for f in fpulls:
             f.Draw("same")
 
-       
+    gPad.Update()
+    y1 = gPad.GetUymin()
+    y2 = gPad.GetUymax()
+    print x1,x2,y1,y2
+    lowerbox  = TBox(x1,y1,x2,y2)
+    lowerbox.SetFillColorAlpha(kYellow,0.3)
+    lowerbox.SetFillStyle(3002)
+    lowerbox.Draw("same")
+      
     if(WriteCanvas):
         STcomparisons[canvasName].Write()
     #Clone and enlargethe lower panel 
@@ -916,7 +917,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         LowerLeg.AddEntry(RatioFillGraphs["gUp_norm"],"Systematic Uncertainty","l")
         LowerLeg.Draw("same")
         LargeRatioCanvas.Write()
-
+    
 
 
     if (WriteDataCards and ExcOrInc=="Inc"):
