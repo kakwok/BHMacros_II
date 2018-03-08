@@ -246,9 +246,9 @@ def getNormErrorGraphs(fLow,fUp,fbest, normErr,RelOrAbs):
             fUp_norm.SetPoint(fUp_norm.GetN(), x, fbest.Eval(x)+delta )
         elif RelOrAbs=="Rel":
             if DrawRatioPanel:
-                fUp_norm.SetPoint(fUp_norm.GetN(), x, delta/fbest.Eval(x)+1)
+                fUp_norm.SetPoint(fUp_norm.GetN(), x/1000, delta/fbest.Eval(x)+1)
             else:
-                fUp_norm.SetPoint(fUp_norm.GetN(), x, delta/fbest.Eval(x) )
+                fUp_norm.SetPoint(fUp_norm.GetN(), x/1000, delta/fbest.Eval(x) )
 
 
     for x in np.arange(fLow.GetXmin(),fLow.GetXmax(),50):
@@ -262,10 +262,10 @@ def getNormErrorGraphs(fLow,fUp,fbest, normErr,RelOrAbs):
                 fLow_norm.SetPoint(fLow_norm.GetN(), x, 0 )  # fLow_norm should not be negative
         elif RelOrAbs=="Rel":
             if (delta<fbest.Eval(x)):
-                if(DrawRatioPanel): fLow_norm.SetPoint(fLow_norm.GetN(), x, -1*delta/fbest.Eval(x) +1)
-                else:               fLow_norm.SetPoint(fLow_norm.GetN(), x, -1*delta/fbest.Eval(x) )
+                if(DrawRatioPanel): fLow_norm.SetPoint(fLow_norm.GetN(), x/1000, -1*delta/fbest.Eval(x) +1)
+                else:               fLow_norm.SetPoint(fLow_norm.GetN(), x/1000, -1*delta/fbest.Eval(x) )
             else:
-                fLow_norm.SetPoint(fLow_norm.GetN(), x, -1 )  # fLow_norm should not be negative
+                fLow_norm.SetPoint(fLow_norm.GetN(), x/1000, -1 )  # fLow_norm should not be negative
     return fLow_norm, fUp_norm
 
 # Return the TGraph bounded by fLow and fUp for drawing
@@ -291,22 +291,22 @@ def getRatioFillGraph(fLow, fUp, fbest, normErr):
     for x in np.arange(fLow.GetXmin(),fLow.GetXmax(),50):
         if(not fbest.Eval(x)==0):
             if DrawRatioPanel:
-                gFill.SetPoint(gFill.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x) +1)
-                gDown.SetPoint(gDown.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x) +1)
-                gbest.SetPoint(gbest.GetN(), x, 1)
+                gFill.SetPoint(gFill.GetN(), x/1000, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x) +1)
+                gDown.SetPoint(gDown.GetN(), x/1000, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x) +1)
+                gbest.SetPoint(gbest.GetN(), x/1000, 1)
             else:
-                gFill.SetPoint(gFill.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
-                gDown.SetPoint(gDown.GetN(), x, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
-                gbest.SetPoint(gbest.GetN(), x, 0)
+                gFill.SetPoint(gFill.GetN(), x/1000, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
+                gDown.SetPoint(gDown.GetN(), x/1000, (fLow.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
+                gbest.SetPoint(gbest.GetN(), x/1000, 0)
 
     for x in np.arange(fUp.GetXmax(),fUp.GetXmin(),-50):
         if(not fbest.Eval(x)==0):
             if DrawRatioPanel:
-                gFill.SetPoint(gFill.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x) +1)
-                gUp.SetPoint(  gUp.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x)   +1)
+                gFill.SetPoint(gFill.GetN(), x/1000, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x) +1)
+                gUp.SetPoint(  gUp.GetN(), x/1000, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x)   +1)
             else:    
-                gFill.SetPoint(gFill.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
-                gUp.SetPoint(  gUp.GetN(), x, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
+                gFill.SetPoint(gFill.GetN(), x/1000, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
+                gUp.SetPoint(  gUp.GetN(), x/1000, (fUp.Eval(x)-fbest.Eval(x))/fbest.Eval(x))
     gDict={"gUp":gUp,"gDown":gDown,"gFill":gFill,"gbest":gbest,"gUp_norm":gUp_norm,"gDown_norm":gDown_norm}
     return gDict
 
@@ -672,7 +672,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
 
     if(DrawSignal):
         #Use larger legend for signal
-        legend = TLegend(0.50, 0.6, 0.8, 0.85,"", "brNDC")
+        legend = TLegend(0.45, 0.5, 0.8, 0.85,"", "brNDC")
     elif(not DrawUncertainty):
         legend = TLegend(0.55, 0.8, 0.8, 0.9,"", "brNDC")
     else:
@@ -743,8 +743,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     lowerPads[LowerPadName].Draw()
     lowerPads[LowerPadName].cd()
 
-    #Draw pulls in the lower panel
     if DrawRatioPanel:
+        #Draw data ratio in the lower panel
         # Save ST ratio
         stExcRatio = stHist.Clone("st%s%02i_RatioToExc%s"%(ExcOrInc,j,stRefHist.GetName()[6]))
         stRefClone = stRefHist.Clone("stRef%s%02i_RatioToExc%s"%(ExcOrInc,j,stRefHist.GetName()[6])) 
@@ -769,6 +769,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         else:
             stExcRatio.GetYaxis().SetRangeUser(0,4)
     elif DrawPullPanel:
+        #Draw Data-Fit/Unc. in ratio panel
         stExcRatio = stHist.Clone("st%s%02i_fitPanel"%(ExcOrInc,j))
         stExcRatio.Sumw2()
         stExcRatio.GetYaxis().SetTitle("(Data-Fit)/Unc.")
@@ -784,23 +785,27 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         stExcRatio.GetYaxis().SetRangeUser(-3,3)
         stExcRatio.SetFillColorAlpha(kGray,0.35)
         stExcRatio.SetLineColor(kBlue)
+        stExcRatio.GetYaxis().SetLabelSize(0.11)
+        stExcRatio.GetYaxis().SetTitleSize(0.12)
+        stExcRatio.GetYaxis().SetTitleOffset(0.25)
     else:
+        #Draw Data-Fit/Fit in ratio panel
         stExcRatio = stHist.Clone("st%s%02i_fitPanel"%(ExcOrInc,j))
         stExcRatio.Sumw2()
         stExcRatio.GetYaxis().SetTitle("(Data-Fit)/Fit")
         stExcRatio.Add(fbest,-1)    # Subtract best fit
         stExcRatio.Divide(fbest,1)  # Divide by best fit   
         stExcRatio.GetYaxis().SetRangeUser(-1,1)
-        #stExcRatio.GetYaxis().SetRangeUser(-0.5,0.5)
+        stExcRatio.GetYaxis().SetNdivisions(-5);
+        stExcRatio.GetYaxis().SetLabelSize(0.11)
+        stExcRatio.GetYaxis().SetTitleSize(0.12)
+        stExcRatio.GetYaxis().SetTitleOffset(0.36)
         if(ExcOrInc=="Inc" and j>=10):
             stExcRatio.GetYaxis().SetRangeUser(-3,3)
     stExcRatio.GetXaxis().SetLabelSize(0.15)
     stExcRatio.GetXaxis().SetTitleSize(0.15)
     stExcRatio.GetXaxis().SetTitle("S_{T} [TeV]")
     
-    stExcRatio.GetYaxis().SetLabelSize(0.11)
-    stExcRatio.GetYaxis().SetTitleSize(0.12)
-    stExcRatio.GetYaxis().SetTitleOffset(0.25)
     stExcRatio.SetTitle("")
     stExcRatio.SetMarkerColor(kBlack)
     stExcRatio.SetMarkerStyle(8)
@@ -829,6 +834,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
                 RatioFillGraphs = getRatioFillGraph(fLow, fUp, fbest ,FracNormErrors_exc3["Inc%s"%j])
             if DrawRatioPanel:
                 RatioFillGraphs["gFill"].SetFillColorAlpha(kGray,0.35)
+                #RatioFillGraphs["gFill"].SetFillColor(kGray)
+                RatioFillGraphs["gFill"].SetFillStyle(1001)
                 RatioFillGraphs["gFill"].SetLineColor(kBlue)
                 RatioFillGraphs["gFill"].Draw("sameF")
                 RatioFillGraphs["gUp"].SetLineColor(kBlue)
@@ -841,6 +848,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
                 RatioFillGraphs["gDown_norm"].Draw("sameC Y+")
             else:
                 RatioFillGraphs["gFill"].SetFillColorAlpha(kGray,0.35)
+                #RatioFillGraphs["gFill"].SetFillColor(kGray)
+                RatioFillGraphs["gFill"].SetFillStyle(1001)
                 RatioFillGraphs["gFill"].SetLineColor(kBlue)
                 RatioFillGraphs["gFill"].Draw("sameF")
                 RatioFillGraphs["gUp"].SetLineColor(kBlue)
@@ -853,6 +862,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
                 RatioFillGraphs["gUp_norm"].Draw("sameC")
                 RatioFillGraphs["gDown_norm"].SetLineColor(kRed)
                 RatioFillGraphs["gDown_norm"].Draw("sameC")
+            gPad.RedrawAxis("g")
             stExcRatio.Draw("sameEP")
     else:
         fpulls = []
