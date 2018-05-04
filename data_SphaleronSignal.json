@@ -7,6 +7,7 @@
    "WriteDataCards" : false,
    "rebin"          : false,
    "useMET"         : true,
-   "ymax"           : 5e3,
-   "ymin"           : 2e-1
+   "TLegXmin"       : 0.3,
+   "ymax"           : 5e4,
+   "ymin"           : 2e-2
 }
