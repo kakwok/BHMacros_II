@@ -14,12 +14,12 @@ extraText   = "Preliminary"
 extraTextFont = 52 
 
 lumiTextSize     = 0.8
-lumiTextOffset   = 0.2
+lumiTextOffset   = 0.3
 
 cmsTextSize      = 0.9
 cmsTextOffset    = 0.1
 
-relPosX    = 0.045
+relPosX    = 0.05
 relPosY    = 0.035
 relExtraDY = 1.2
 
@@ -120,7 +120,7 @@ def CMS_lumi(pad,  iPeriod,  iPosX ):
         posX_ =  1-r - relPosX*(1-l-r)
 
     posY_ = 1-t - relPosY*(1-t-b)
-    print posX_,posY_
+    #print "CMSLUMU POSX=%s, POSY= %s"%(posX_,posY_)
 
     if( not outOfFrame ):
         if( drawLogo ):
