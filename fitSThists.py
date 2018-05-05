@@ -748,7 +748,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     STcomparisons[canvasName].cd()
     lowerPads[LowerPadName] = (TPad(LowerPadName, "ratiopad1", 0, 0.02, 1, 0.3))
     lowerPads[LowerPadName].SetTopMargin(0.05)
-    lowerPads[LowerPadName].SetBottomMargin(0.3)
+    lowerPads[LowerPadName].SetBottomMargin(0.4)
     #lowerPads[LowerPadName].SetGridy(1)
     lowerPads[LowerPadName].Draw()
     lowerPads[LowerPadName].cd()
@@ -795,9 +795,10 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         stExcRatio.GetYaxis().SetRangeUser(-3,3)
         stExcRatio.SetFillColorAlpha(kGray,0.35)
         stExcRatio.SetLineColor(kBlue)
-        stExcRatio.GetYaxis().SetLabelSize(0.11)
-        stExcRatio.GetYaxis().SetTitleSize(0.14)
-        stExcRatio.GetYaxis().SetTitleOffset(0.3)
+        stExcRatio.GetYaxis().SetLabelSize(0.13)
+        stExcRatio.GetYaxis().SetLabelOffset(0.02)
+        stExcRatio.GetYaxis().SetTitleSize(0.17)
+        stExcRatio.GetYaxis().SetTitleOffset(0.38)
     else:
         #Draw Data-Fit/Fit in ratio panel
         stExcRatio = stHist.Clone("st%s%02i_fitPanel"%(ExcOrInc,j))
@@ -813,10 +814,10 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         stExcRatio.GetYaxis().SetTitleOffset(0.38)
         if(ExcOrInc=="Inc" and j>=10):
             stExcRatio.GetYaxis().SetRangeUser(-3,3)
-    stExcRatio.GetXaxis().SetLabelSize(0.15)
-    stExcRatio.GetXaxis().SetLabelOffset(0.03)
-    stExcRatio.GetXaxis().SetTitleSize(0.15)
-    stExcRatio.GetXaxis().SetTitleOffset(0.98)
+    stExcRatio.GetXaxis().SetLabelSize(0.17)
+    stExcRatio.GetXaxis().SetLabelOffset(0.035)
+    stExcRatio.GetXaxis().SetTitleSize(0.17)
+    stExcRatio.GetXaxis().SetTitleOffset(1)
     stExcRatio.GetXaxis().SetNdivisions(510);
     stExcRatio.GetXaxis().SetTitle("S_{T} [TeV]")
     
