@@ -69,7 +69,7 @@ fitPamTable        = []
 fitPamTable_head   = ["Function","Exc3/Exc4","p0","p1","p2","p3","p4","p5"]
 fitPamTable.append(fitPamTable_head)
 NormTable_j        = []
-NormTable_head     = ["Multiplicity","region[TeV]","factor","percentage"]
+NormTable_head     = ["Multiplicity","region[TeV]","inclusiveN","exclusiveN","factor","percentage"]
 NormTable.append(NormTable_head)
 #Dict{"IncN":factor}
 NormFactors_exc2         = {}
@@ -352,24 +352,30 @@ def getNormalizedFunctionWithChi2(f, hist, ExcOrInc, j, STlow=0, STup=0):
         upperNormBin_ref  = normHist.GetXaxis().FindBin(UpperNormBound)
 
     for normbin in range(lowerNormBin, upperNormBin):
-        histBinTotal+=hist.GetBinContent(normbin)*hist.GetBinWidth(normbin)
+        histBinTotal+=hist.GetBinContent(normbin)
+        histBinwidth = hist.GetBinWidth(normbin)
+        #histBinTotal+=hist.GetBinContent(normbin)
     for normbin in range(lowerNormBin_ref, upperNormBin_ref):
-        normBinTotal+=normHist.GetBinContent(normbin)*normHist.GetBinWidth(normbin)
+        normBinTotal+=normHist.GetBinContent(normbin)
+        normBinwidth = normHist.GetBinWidth(normbin)
+        #normBinTotal+=normHist.GetBinContent(normbin)
 
     #normfactor =  (normBinTotal/f.Integral(xlowedge, xupedge))*binwidth 
-    normfactor =  histBinTotal/normBinTotal 
-    FracNormErr    = sqrt(1.0/sqrt(histBinTotal)+1.0/sqrt(normBinTotal))
+    normfactor =  histBinTotal*histBinwidth/(normBinTotal *normBinwidth)
+    #FracNormErr    = sqrt(1.0/sqrt(histBinTotal)+1.0/sqrt(normBinTotal))
+    FracNormErr    =  sqrt(1.0/histBinTotal+1.0/normBinTotal)
     NormErr        = FracNormErr * normfactor 
     if(ExcOrInc=="Inc") :
         if ("exc2" in f.GetName() and not("Inc%s"%j in NormFactors_exc2) ):
             #NormTable.append([">=%s"%j,"%s-%s"%(LowerNormBound/1000,UpperNormBound/1000),"%.5f+-%.5f"%(normfactor,NormErr),"%.1f"%(FracNormErr*100)+"%"])
             NormFactors_exc2["Inc%s"%j]    = normfactor
-            FracNormErrors_exc2["Inc%s"%j] = FracNormErr 
+            FracNormErrors_exc2["Inc%s"%j] = FracNormErr
         if ("exc3" in f.GetName() and not("Inc%s"%j in NormFactors_exc3) ):
-            NormTable.append([">=%s"%j,"%s-%s"%(LowerNormBound/1000,UpperNormBound/1000),"%.5f+-%.5f"%(normfactor,NormErr),"%.1f"%(FracNormErr*100)+"%"])
+            NormTable.append([">=%s"%j,"%s-%s"%(LowerNormBound/1000,UpperNormBound/1000),histBinTotal,normBinTotal,"%.5f+-%.5f"%(normfactor,NormErr),"%.1f"%(FracNormErr*100)+"%"])
             NormFactors_exc3["Inc%s"%j]    = normfactor
             FracNormErrors_exc3["Inc%s"%j] = FracNormErr 
         if ("exc4" in f.GetName() and not("Inc%s"%j in NormFactors_exc4) ):
+            #NormTable.append([">=%s"%j,"%s-%s"%(LowerNormBound/1000,UpperNormBound/1000),histBinTotal,normBinTotal,"%.5f+-%.5f"%(normfactor,NormErr),"%.1f"%(FracNormErr*100)+"%"])
             NormFactors_exc4["Inc%s"%j]    = normfactor
             FracNormErrors_exc4["Inc%s"%j] = FracNormErr 
 
@@ -503,8 +509,8 @@ def setBestFit(functions):
     #return functions[ chi2_devlist.index( min(chi2_devlist) ) ]
 def ratioplot(fbest, sthist,xlow,xup):
     h = sthist.Clone("h_ratio")
-def weightSignal(signalhist, xsection, lumi):
-    Ngen   = 10000
+def weightSignal(signalhist, xsection, lumi,Ngen):
+#    Ngen   = 10000
     Weight = (Lumi * xsection) / Ngen
     signalhist.Scale(Weight)
     return signalhist
@@ -541,9 +547,9 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         stHist.GetYaxis().SetTitle("Events/0.05 TeV")
     else:
         stHist.GetYaxis().SetTitle("Events/0.1 TeV")
-    stHist.GetYaxis().SetTitleSize(0.05)
-    stHist.GetYaxis().SetTitleOffset(0.95)
-    stHist.GetYaxis().SetLabelSize(0.06)
+    stHist.GetYaxis().SetTitleSize(0.07)
+    stHist.GetYaxis().SetTitleOffset(0.97)
+    stHist.GetYaxis().SetLabelSize(0.08)
     stHist.SetMarkerColor(kBlack)
     stHist.SetLineColor(kBlack)
     stHist.SetMarkerStyle(8)
@@ -561,6 +567,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     stHist.GetXaxis().SetLabelSize(0)
     if 'ymin' in plotSettings.keys():
         stHist.SetMinimum(plotSettings['ymin'])
+        print "setting ymin to %s"%plotSettings['ymin']
     else:
         stHist.SetMinimum(2e-1)
     #if(j==10):
@@ -672,31 +679,33 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
 
     if(DrawSignal):
         #Use larger legend for signal
-        legend = TLegend(0.45, 0.5, 0.8, 0.85,"", "brNDC")
+        legend = TLegend(0.35, 0.475, 0.8, 0.85,"", "brNDC")
     elif(not DrawUncertainty):
         legend = TLegend(0.55, 0.8, 0.8, 0.9,"", "brNDC")
     else:
         legend = TLegend(0.50, 0.5, 0.8, 0.85,"", "brNDC")
+    if 'TLegXmin' in plotSettings.keys():
+        legend = TLegend(plotSettings['TLegXmin'], 0.475, 0.8, 0.85,"", "brNDC")
     legend.SetTextSize(0.05);
     legend.SetLineWidth(1);
     legend.SetBorderSize(0);
     legend.SetFillStyle(1001);
     legend.SetFillColor(10);
     if(ExcOrInc=="Exc"):
-        legend.SetHeader("Multiplicity =%i"%j);
+        legend.SetHeader("N =%i"%j);
         if("QCD" in PlotsFname):
             legend.AddEntry(stHist,"QCD","ep");
         else:
             legend.AddEntry(stHist,"Data","ep");
     if(ExcOrInc=="Inc"):
-        legend.SetHeader("Multiplicity #geq %i"%j);
+        legend.SetHeader("N #geq %i"%j);
         if("QCD" in PlotsFname):
             legend.AddEntry(stHist,"QCD","ep");
         else:
             legend.AddEntry(stHist,"Data","ep");
     if DrawUncertainty:
-        legend.AddEntry(fillGraph,"Background Shape","fl");
-        legend.AddEntry(fLow_norm,"Systematic Uncertainties","l");
+        legend.AddEntry(fillGraph,"Background shape","fl");
+        legend.AddEntry(fLow_norm,"Systematic uncertainties","l");
         if (ExcOrInc=="Inc"):
             legend.AddEntry(box,"Normalization region","f");
         if (ExcOrInc=="Exc"):
@@ -709,7 +718,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
             print "Injecting  model = "+signalName
             signalHistName = "st"+ExcOrInc+"%02i"%j+"Hist"
             signalhist = signal[signalHistName]
-            weightSignal( signalhist, signal["xsec"], Lumi)
+            Ngen       = signal['Ngen'].GetBinContent(1)
+            weightSignal( signalhist, signal["xsec"], Lumi, Ngen)
             signalhist.SetLineColor(signal["color"])
             if not(stHist.GetBinWidth(1)==signalhist.GetBinWidth(1)):
                 signalhist.Rebin()
@@ -739,7 +749,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     lowerPads[LowerPadName] = (TPad(LowerPadName, "ratiopad1", 0, 0.02, 1, 0.3))
     lowerPads[LowerPadName].SetTopMargin(0.05)
     lowerPads[LowerPadName].SetBottomMargin(0.3)
-    lowerPads[LowerPadName].SetGridy(1)
+    #lowerPads[LowerPadName].SetGridy(1)
     lowerPads[LowerPadName].Draw()
     lowerPads[LowerPadName].cd()
 
@@ -786,8 +796,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         stExcRatio.SetFillColorAlpha(kGray,0.35)
         stExcRatio.SetLineColor(kBlue)
         stExcRatio.GetYaxis().SetLabelSize(0.11)
-        stExcRatio.GetYaxis().SetTitleSize(0.12)
-        stExcRatio.GetYaxis().SetTitleOffset(0.25)
+        stExcRatio.GetYaxis().SetTitleSize(0.14)
+        stExcRatio.GetYaxis().SetTitleOffset(0.3)
     else:
         #Draw Data-Fit/Fit in ratio panel
         stExcRatio = stHist.Clone("st%s%02i_fitPanel"%(ExcOrInc,j))
@@ -797,13 +807,17 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         stExcRatio.Divide(fbest,1)  # Divide by best fit   
         stExcRatio.GetYaxis().SetRangeUser(-1,1)
         stExcRatio.GetYaxis().SetNdivisions(-5);
-        stExcRatio.GetYaxis().SetLabelSize(0.11)
-        stExcRatio.GetYaxis().SetTitleSize(0.12)
-        stExcRatio.GetYaxis().SetTitleOffset(0.36)
+        stExcRatio.GetYaxis().SetLabelSize(0.13)
+        stExcRatio.GetYaxis().SetLabelOffset(0.02)
+        stExcRatio.GetYaxis().SetTitleSize(0.17)
+        stExcRatio.GetYaxis().SetTitleOffset(0.38)
         if(ExcOrInc=="Inc" and j>=10):
             stExcRatio.GetYaxis().SetRangeUser(-3,3)
     stExcRatio.GetXaxis().SetLabelSize(0.15)
+    stExcRatio.GetXaxis().SetLabelOffset(0.03)
     stExcRatio.GetXaxis().SetTitleSize(0.15)
+    stExcRatio.GetXaxis().SetTitleOffset(0.98)
+    stExcRatio.GetXaxis().SetNdivisions(510);
     stExcRatio.GetXaxis().SetTitle("S_{T} [TeV]")
     
     stExcRatio.SetTitle("")
@@ -888,6 +902,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     lowerbox.Draw("same")
       
     if(WriteCanvas):
+        STcomparisons[canvasName].RedrawAxis()
         STcomparisons[canvasName].Write()
     #Clone and enlargethe lower panel 
     if DrawRatioPanel:   
@@ -923,8 +938,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
                 LowerLeg = TLegend(0.11, 0.65, 0.4, 0.85,"", "brNDC")
             LowerLeg.AddEntry(stExcRatio,"Data")
         LowerLeg.SetBorderSize(0)
-        LowerLeg.AddEntry(RatioFillGraphs["gFill"],"Background Shape","fl")
-        LowerLeg.AddEntry(RatioFillGraphs["gUp_norm"],"Systematic Uncertainty","l")
+        LowerLeg.AddEntry(RatioFillGraphs["gFill"],"Background shape","fl")
+        LowerLeg.AddEntry(RatioFillGraphs["gUp_norm"],"Systematic uncertainty","l")
         LowerLeg.Draw("same")
         LargeRatioCanvas.Write()
     
@@ -948,7 +963,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
             #shapeUncUp  = (GraphIntegrate(fUp_norm,stmin*100, 11000,(11000-stmin*100)/50)/binwidth)  /expected
             shapeUncLow = (fLow.Integral(stmin*100, 11000)/binwidth)/expected 
             shapeUncUp  = (fUp.Integral(stmin*100, 11000)/binwidth)/expected 
-            Norm_Unc    = FracNormErrors["Inc%s"%j] +1
+            Norm_Unc    = FracNormErrors_exc3["Inc%s"%j] +1
             #print stmin*100, shapeUnc, shapeNormUncLow, expected
             #print stmin*100, fLow.Eval(stmin*100), fLow_norm.Eval(stmin*100)
             if not ((j>5 and stmin<23) or (j>8 and stmin<25) or (j>10 and stmin<26)):
@@ -1225,17 +1240,26 @@ BH1_MBH9 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH1_M
 BH1_MBH10= {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH1_MD-4000_MBH-10000_n-6_TuneCUETP8M1_13TeV-blackmax_FlatTuple_1.root" ,'label':"B1: M_{D}=4 TeV, M_{BH}=10 TeV, n=6","color":kViolet ,"xsec":6.0149000E-05}
 
 BH2_MBH8 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/BlackMax/BlackHole_BH2_MD-4000_MBH-8000_n-2_TuneCUETP8M1_13TeV-blackmax_FlatTuple_1.root" ,'label':"B2_MD4_MBH8_n2","color":kYellow ,"xsec":2.6425800E-03}
-Sphaleron= {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphaleron_NNPDF30_lo_as_0118_0_pythia8TuneCUETP8M1_FlatTuple_1.root" ,'label':"Sphaleron, E_{Sph} = 9 TeV, PEF = 1","color":kGreen ,"xsec":7.3E-03}
+PEF_9TeV = 0.02
+PEF_8TeV = 0.002
+PEF_10TeV = 0.2
+#CT10 xsection
+Xsec = {8.0:121.127E-03,9.0:10.0507E-03,10.0:0.505661E-03}
+Sphaleron_9TeV_MSTW= {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphalaron/BHflatTuple_Sphaleron-MSTW2008lo_PEF_1_Espha_9.root" ,'label':"Sphaleron(MSTW), E_{Sph} = 9 TeV, PEF = %s"%PEF_9TeV,"color":kCyan ,"xsec":7.1E-03*PEF_9TeV}
+Sphaleron_9TeV = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphaleron_NNPDF30_lo_as_0118_0_pythia8TuneCUETP8M1_FlatTuple_1.root" ,'label':"Sphaleron, E_{Sph} = 9 TeV, PEF = %s"%PEF_9TeV,"color":kGreen ,"xsec":7.1E-03*PEF_9TeV}
+Sphaleron_8TeV = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphalaron/BHflatTuple_Sphaleron_PEF_1_Espha_8.root" ,'label':"Sphaleron, E_{Sph} = 8 TeV, PEF = %s"%PEF_8TeV,"color":kCyan ,"xsec":99.17E-03*PEF_8TeV}
+Sphaleron_10TeV= {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphalaron/BHflatTuple_Sphaleron_PEF_1_Espha_10.root" ,'label':"Sphaleron, E_{Sph} = 10 TeV, PEF = %s"%PEF_10TeV,"color":kOrange ,"xsec":0.268E-03*PEF_10TeV}
+
+Sphaleron_8TeV_CT10 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphalaron/BHflatTuple_Sphaleron-CT10_PEF_1_Espha_8.root" ,'label':"Sphaleron, E_{Sph} = 8 TeV, PEF = %s"%PEF_8TeV,"color":kCyan     ,"xsec":Xsec[8.0]*PEF_8TeV}
+Sphaleron_9TeV_CT10 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphalaron/BHflatTuple_Sphaleron-CT10_PEF_1_Espha_9.root" ,'label':"Sphaleron, E_{Sph} = 9 TeV, PEF = %s"%PEF_9TeV,"color":kGreen    ,"xsec":Xsec[9.0]*PEF_9TeV}
+Sphaleron_10TeV_CT10= {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphalaron/BHflatTuple_Sphaleron-CT10_PEF_1_Espha_10.root",'label':"Sphaleron, E_{Sph} = 10 TeV, PEF = %s"%PEF_10TeV,"color":kOrange ,"xsec":Xsec[10.0]*PEF_10TeV}
 lowMultiSignals ={
 "BH1_MBH8":BH1_MBH8,
 "BH1_MBH9":BH1_MBH9,
 "BH1_MBH10":BH1_MBH10
 }
 highMultiSignals={
-"Sphaleron":Sphaleron,
-"BH1_MBH8":BH1_MBH8,
-"BH1_MBH9":BH1_MBH9,
-"BH1_MBH10":BH1_MBH10
+"Sphaleron9":Sphaleron_9TeV_CT10
 }
 Exc7Signals ={
 "BH1_MBH8":BH1_MBH8,
@@ -1243,13 +1267,17 @@ Exc7Signals ={
 "BH1_MBH10":BH1_MBH10
 }
 Exc9Signals ={
-"Sphaleron":Sphaleron
+"Sphaleron_8TeV":Sphaleron_8TeV_CT10,
+"Sphaleron_9TeV":Sphaleron_9TeV_CT10
 }
-
+Exc8Signals ={
+"Sphaleron_10TeV":Sphaleron_10TeV_CT10
+}
 SignalLists={
 "lowMultiSignals":lowMultiSignals, 
 "highMultiSignals":highMultiSignals,
 "Exc7Signals":Exc7Signals,
+"Exc8Signals":Exc8Signals,
 "Exc9Signals":Exc9Signals
 }
 
@@ -1294,6 +1322,8 @@ for j in range(2,12):
             signalRoot          = TFile(signal["fname"])
             signal[IncHistName] = signalRoot.Get("ST/"+IncHistName)
             signal[ExcHistName] = signalRoot.Get("ST/"+ExcHistName)
+            signal['Ngen']      = signalRoot.Get("Ngen")
+            signal['Ngen'].SetDirectory(0)
             signal[IncHistName].SetDirectory(0)
             signal[ExcHistName].SetDirectory(0)
 
@@ -1317,6 +1347,8 @@ for j in range(2,12):
             NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True,SignalLists["lowMultiSignals"])
         elif j==7:
             NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True,SignalLists["Exc7Signals"])
+        elif j==8:
+            NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True,SignalLists["Exc8Signals"])
         elif j==9:
             NormAndDrawST(stIncHist,j,"Inc",stExc3Hist,True,SignalLists["Exc9Signals"])
         else:
