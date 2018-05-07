@@ -556,7 +556,22 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     stHist.SetMarkerSize(0.7)
     #stHist.Sumw2(False)
     stHist.SetBinErrorOption(TH1.kPoisson)
-    stHist.Draw("E0P")
+    #FoundLastBin = False
+    #for ibin in range(0,stHist.GetNbinsX()):
+    #        if stHist.GetBinContent(ibin)==0:      
+    #            stHist.SetBinContent(ibin,0.1)
+    #            stHist.SetBinError(ibin,1.8)
+    #for ibin in range(stHist.GetNbinsX(),0,-1):
+    #    x = stHist.GetBinCenter(ibin)
+    #    if not FoundLastBin:
+    #        if stHist.GetBinContent(ibin)>0.2:
+    #            FoundLastBin = True
+    #        else:
+    #            stHist.SetBinError(ibin,0)
+
+    #for ibin in range(0,stHist.GetNbinsX()):
+    #    print stHist.GetBinCenter(ibin), stHist.GetBinContent(ibin),stHist.GetBinError(ibin) 
+    stHist.Draw("EP")
 
     binwidth      = stHist.GetXaxis().GetBinWidth(1)
     #stHist.GetXaxis().SetRangeUser(lowerNormEdge, STup)
@@ -810,12 +825,18 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         stExcRatio.GetYaxis().SetTitle("#frac{(Data-Fit)}{Fit}")
         stExcRatio.Add(fbest,-1)    # Subtract best fit
         stExcRatio.Divide(fbest,1)  # Divide by best fit   
+        for ibin in range(0,stExcRatio.GetNbinsX()+1):
+            if(stExcRatio.GetBinContent(ibin)+1<abs(0.01)):
+                x = stExcRatio.GetBinCenter(ibin)
+                stExcRatio.SetBinError(ibin, 1.8/ fbest.Eval(x))
+
+
         stExcRatio.GetYaxis().SetRangeUser(-1,1)
         stExcRatio.GetYaxis().SetNdivisions(-5);
         stExcRatio.GetYaxis().SetLabelSize(0.13)
         stExcRatio.GetYaxis().SetLabelOffset(0.02)
         stExcRatio.GetYaxis().SetTitleSize(0.15)
-        stExcRatio.GetYaxis().SetTitleOffset(0.42)
+        stExcRatio.GetYaxis().SetTitleOffset(0.48)
         if(ExcOrInc=="Inc" and j>=10):
             stExcRatio.GetYaxis().SetRangeUser(-3,3)
     stExcRatio.GetXaxis().SetLabelSize(0.17)
