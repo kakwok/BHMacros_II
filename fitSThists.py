@@ -555,7 +555,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     stHist.SetMarkerStyle(8)
     stHist.SetMarkerSize(0.7)
     #stHist.Sumw2(False)
-    stHist.Draw("EP")
+    stHist.SetBinErrorOption(TH1.kPoisson)
+    stHist.Draw("E0P")
 
     binwidth      = stHist.GetXaxis().GetBinWidth(1)
     #stHist.GetXaxis().SetRangeUser(lowerNormEdge, STup)
@@ -676,6 +677,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         leg2.Draw("SAME")
 
     fbest.Draw("SAME")
+    stHist.Draw("E0P same")
 
     if(DrawSignal):
         #Use larger legend for signal
@@ -692,7 +694,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     legend.SetFillStyle(1001);
     legend.SetFillColor(10);
     if(ExcOrInc=="Exc"):
-        legend.SetHeader("N =%i"%j);
+        legend.SetHeader("N = %i"%j);
         if("QCD" in PlotsFname):
             legend.AddEntry(stHist,"QCD","ep");
         else:
@@ -731,6 +733,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
                 for ibin in range(1,signalhist.GetNbinsX()+1):
                     x = signalhist.GetBinCenter(ibin)
                     signalhist.SetBinContent(ibin, signalhist.GetBinContent(ibin) + fbest.Eval(x))
+                signalhist.SetLineWidth(2)
                 signalhist.Draw("same HIST")
                 legend.AddEntry(signalhist,signal["label"],"l");
     legend.Draw()
@@ -782,7 +785,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         #Draw Data-Fit/Unc. in ratio panel
         stExcRatio = stHist.Clone("st%s%02i_fitPanel"%(ExcOrInc,j))
         stExcRatio.Sumw2()
-        stExcRatio.GetYaxis().SetTitle("(Data-Fit)/Unc.")
+        stExcRatio.GetYaxis().SetTitle("#frac{(Data-Fit)}{Unc.}")
         # Divide by error bar
         for ibin in range(0,stExcRatio.GetNbinsX()+1):
             if(not stExcRatio.GetBinContent(ibin)==0):
@@ -797,21 +800,22 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         stExcRatio.SetLineColor(kBlue)
         stExcRatio.GetYaxis().SetLabelSize(0.13)
         stExcRatio.GetYaxis().SetLabelOffset(0.02)
-        stExcRatio.GetYaxis().SetTitleSize(0.17)
+        stExcRatio.GetYaxis().SetTitleSize(0.15)
         stExcRatio.GetYaxis().SetTitleOffset(0.38)
     else:
         #Draw Data-Fit/Fit in ratio panel
         stExcRatio = stHist.Clone("st%s%02i_fitPanel"%(ExcOrInc,j))
         stExcRatio.Sumw2()
-        stExcRatio.GetYaxis().SetTitle("(Data-Fit)/Fit")
+        stExcRatio.SetBinErrorOption(TH1.kPoisson)
+        stExcRatio.GetYaxis().SetTitle("#frac{(Data-Fit)}{Fit}")
         stExcRatio.Add(fbest,-1)    # Subtract best fit
         stExcRatio.Divide(fbest,1)  # Divide by best fit   
         stExcRatio.GetYaxis().SetRangeUser(-1,1)
         stExcRatio.GetYaxis().SetNdivisions(-5);
         stExcRatio.GetYaxis().SetLabelSize(0.13)
         stExcRatio.GetYaxis().SetLabelOffset(0.02)
-        stExcRatio.GetYaxis().SetTitleSize(0.17)
-        stExcRatio.GetYaxis().SetTitleOffset(0.38)
+        stExcRatio.GetYaxis().SetTitleSize(0.15)
+        stExcRatio.GetYaxis().SetTitleOffset(0.42)
         if(ExcOrInc=="Inc" and j>=10):
             stExcRatio.GetYaxis().SetRangeUser(-3,3)
     stExcRatio.GetXaxis().SetLabelSize(0.17)
