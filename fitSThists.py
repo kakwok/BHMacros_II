@@ -555,23 +555,43 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     stHist.SetMarkerStyle(8)
     stHist.SetMarkerSize(0.7)
     #stHist.Sumw2(False)
-    stHist.SetBinErrorOption(TH1.kPoisson)
-    #FoundLastBin = False
-    #for ibin in range(0,stHist.GetNbinsX()):
-    #        if stHist.GetBinContent(ibin)==0:      
-    #            stHist.SetBinContent(ibin,0.1)
-    #            stHist.SetBinError(ibin,1.8)
-    #for ibin in range(stHist.GetNbinsX(),0,-1):
-    #    x = stHist.GetBinCenter(ibin)
-    #    if not FoundLastBin:
-    #        if stHist.GetBinContent(ibin)>0.2:
-    #            FoundLastBin = True
-    #        else:
-    #            stHist.SetBinError(ibin,0)
+    #stHist.SetBinErrorOption(TH1.kPoisson)
+    FoundLastBin = False
+    alpha = 1- 0.6827
+    g = TGraphAsymmErrors()
+    g.SetMarkerStyle(8)
+    g.SetMarkerSize(0.7)
+    for ibin in range(0,stHist.GetNbinsX()):
+        x    = stHist.GetBinCenter(ibin)
+        y    = stHist.GetBinContent(ibin)
+        erry = stHist.GetBinError(ibin)
+        U = Math.gamma_quantile_c(alpha/2,y+1,1.0) 
+        if not y==0:    L = Math.gamma_quantile(alpha/2,y,1.0)
+        else:           L = 0
+        deltaU = U - y
+        deltaL = y - L
+        if stHist.GetBinContent(ibin)==0:      
+            stHist.SetBinError(ibin,deltaU)
+        elif y<50:
+            #stHist.SetBinError(ibin,0)
+            g.SetPoint(g.GetN(), x, y)
+            g.SetPointEYlow(g.GetN()-1, deltaL)
+            g.SetPointEYhigh(g.GetN()-1, deltaU)
+            #print "%.4f, %.4f, %.4f, %.4f"%(x,errX, deltaU, deltaL)
+            #stHist.SetBinError(ibin,max([errX,deltaU,deltaL]))
+            
+    for ibin in range(stHist.GetNbinsX(),0,-1):
+        x = stHist.GetBinCenter(ibin)
+        if not FoundLastBin:
+            if not stHist.GetBinContent(ibin)==0:
+                FoundLastBin = True
+            else:
+                stHist.SetBinError(ibin,0)
 
     #for ibin in range(0,stHist.GetNbinsX()):
     #    print stHist.GetBinCenter(ibin), stHist.GetBinContent(ibin),stHist.GetBinError(ibin) 
-    stHist.Draw("EP")
+    stHist.Draw("E0P")
+    g.Draw("sameZ")
 
     binwidth      = stHist.GetXaxis().GetBinWidth(1)
     #stHist.GetXaxis().SetRangeUser(lowerNormEdge, STup)
@@ -693,6 +713,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
 
     fbest.Draw("SAME")
     stHist.Draw("E0P same")
+    g.Draw("sameZ")
 
     if(DrawSignal):
         #Use larger legend for signal
@@ -826,9 +847,10 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
         stExcRatio.Add(fbest,-1)    # Subtract best fit
         stExcRatio.Divide(fbest,1)  # Divide by best fit   
         for ibin in range(0,stExcRatio.GetNbinsX()+1):
+            if stExcRatio.GetBinError(ibin)==0: continue
             if(stExcRatio.GetBinContent(ibin)+1<abs(0.01)):
                 x = stExcRatio.GetBinCenter(ibin)
-                stExcRatio.SetBinError(ibin, 1.8/ fbest.Eval(x))
+                stExcRatio.SetBinError(ibin, 1.84/ fbest.Eval(x))
 
 
         stExcRatio.GetYaxis().SetRangeUser(-1,1)
