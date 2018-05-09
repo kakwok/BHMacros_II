@@ -20,6 +20,7 @@ CMS_lumi.extraText = "Preliminary"
 CMS_lumi.lumi_sqrtS = "13 TeV" # used with iPeriod = 0, e.g. for simulation-only plots (default is an empty string)
 iPos = 11
 if( iPos==0 ): CMS_lumi.relPosX = 0.12
+CMS_lumi.relPosX = 0.08
 iPeriod = 4
 
 ##################################################################
@@ -715,14 +716,24 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     stHist.Draw("E0P same")
     g.Draw("sameZ")
 
+    tex  = TLatex()
+    tex.SetNDC()
+    tex.SetTextSize(0.07)
+
     if(DrawSignal):
         #Use larger legend for signal
         legend = TLegend(0.35, 0.475, 0.8, 0.85,"", "brNDC")
+        if not 'TLegXmin' in plotSettings.keys():
+            tex.DrawLatex(0.23,0.75,"N = %i"%j if ExcOrInc=="Exc" else "N #geq %i"%j)
     elif(not DrawUncertainty):
         legend = TLegend(0.55, 0.8, 0.8, 0.9,"", "brNDC")
+        tex.DrawLatex(0.28,0.75,"N = %i"%j if ExcOrInc=="Exc" else "N #geq %i"%j)
     else:
         legend = TLegend(0.50, 0.5, 0.8, 0.85,"", "brNDC")
+        tex.DrawLatex(0.28,0.75,"N = %i"%j if ExcOrInc=="Exc" else "N #geq %i"%j)
     if 'TLegXmin' in plotSettings.keys():
+        CMS_lumi.relPosX = 0.05
+        tex.DrawLatex(0.2,0.75,"N = %i"%j if ExcOrInc=="Exc" else "N #geq %i"%j)
         legend = TLegend(plotSettings['TLegXmin'], 0.475, 0.8, 0.85,"", "brNDC")
     legend.SetTextSize(0.05);
     legend.SetLineWidth(1);
@@ -730,13 +741,11 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     legend.SetFillStyle(1001);
     legend.SetFillColor(10);
     if(ExcOrInc=="Exc"):
-        legend.SetHeader("N = %i"%j);
         if("QCD" in PlotsFname):
             legend.AddEntry(stHist,"QCD","ep");
         else:
             legend.AddEntry(stHist,"Data","ep");
     if(ExcOrInc=="Inc"):
-        legend.SetHeader("N #geq %i"%j);
         if("QCD" in PlotsFname):
             legend.AddEntry(stHist,"QCD","ep");
         else:
@@ -831,7 +840,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
                 #print x, systematic, Uncertainty
                 stExcRatio.SetBinContent(ibin, (stExcRatio.GetBinContent(ibin)-fbest.Eval(x)) /Uncertainty )
                 stExcRatio.SetBinError(ibin, 0)
-        stExcRatio.GetYaxis().SetRangeUser(-3,3)
+        stExcRatio.GetYaxis().SetRangeUser(-2.8,2.8)
         stExcRatio.SetFillColorAlpha(kGray,0.35)
         stExcRatio.SetLineColor(kBlue)
         stExcRatio.GetYaxis().SetLabelSize(0.13)
@@ -851,8 +860,6 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
             if(stExcRatio.GetBinContent(ibin)+1<abs(0.01)):
                 x = stExcRatio.GetBinCenter(ibin)
                 stExcRatio.SetBinError(ibin, 1.84/ fbest.Eval(x))
-
-
         stExcRatio.GetYaxis().SetRangeUser(-1,1)
         stExcRatio.GetYaxis().SetNdivisions(-5);
         stExcRatio.GetYaxis().SetLabelSize(0.13)
@@ -1293,14 +1300,14 @@ PEF_8TeV = 0.002
 PEF_10TeV = 0.2
 #CT10 xsection
 Xsec = {8.0:121.127E-03,9.0:10.0507E-03,10.0:0.505661E-03}
-Sphaleron_9TeV_MSTW= {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphalaron/BHflatTuple_Sphaleron-MSTW2008lo_PEF_1_Espha_9.root" ,'label':"Sphaleron(MSTW), E_{Sph} = 9 TeV, PEF = %s"%PEF_9TeV,"color":kCyan ,"xsec":7.1E-03*PEF_9TeV}
-Sphaleron_9TeV = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphaleron_NNPDF30_lo_as_0118_0_pythia8TuneCUETP8M1_FlatTuple_1.root" ,'label':"Sphaleron, E_{Sph} = 9 TeV, PEF = %s"%PEF_9TeV,"color":kGreen ,"xsec":7.1E-03*PEF_9TeV}
-Sphaleron_8TeV = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphalaron/BHflatTuple_Sphaleron_PEF_1_Espha_8.root" ,'label':"Sphaleron, E_{Sph} = 8 TeV, PEF = %s"%PEF_8TeV,"color":kCyan ,"xsec":99.17E-03*PEF_8TeV}
-Sphaleron_10TeV= {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphalaron/BHflatTuple_Sphaleron_PEF_1_Espha_10.root" ,'label':"Sphaleron, E_{Sph} = 10 TeV, PEF = %s"%PEF_10TeV,"color":kOrange ,"xsec":0.268E-03*PEF_10TeV}
+Sphaleron_9TeV_MSTW= {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphalaron/BHflatTuple_Sphaleron-MSTW2008lo_PEF_1_Espha_9.root" ,'label':"Sphaleron(MSTW), E_{sph} = 9 TeV, PEF = %s"%PEF_9TeV,"color":kCyan ,"xsec":7.1E-03*PEF_9TeV}
+Sphaleron_9TeV = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphaleron_NNPDF30_lo_as_0118_0_pythia8TuneCUETP8M1_FlatTuple_1.root" ,'label':"Sphaleron, E_{sph} = 9 TeV, PEF = %s"%PEF_9TeV,"color":kGreen ,"xsec":7.1E-03*PEF_9TeV}
+Sphaleron_8TeV = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphalaron/BHflatTuple_Sphaleron_PEF_1_Espha_8.root" ,'label':"Sphaleron, E_{sph} = 8 TeV, PEF = %s"%PEF_8TeV,"color":kCyan ,"xsec":99.17E-03*PEF_8TeV}
+Sphaleron_10TeV= {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphalaron/BHflatTuple_Sphaleron_PEF_1_Espha_10.root" ,'label':"Sphaleron, E_{sph} = 10 TeV, PEF = %s"%PEF_10TeV,"color":kOrange ,"xsec":0.268E-03*PEF_10TeV}
 
-Sphaleron_8TeV_CT10 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphalaron/BHflatTuple_Sphaleron-CT10_PEF_1_Espha_8.root" ,'label':"Sphaleron, E_{Sph} = 8 TeV, PEF = %s"%PEF_8TeV,"color":kCyan     ,"xsec":Xsec[8.0]*PEF_8TeV}
-Sphaleron_9TeV_CT10 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphalaron/BHflatTuple_Sphaleron-CT10_PEF_1_Espha_9.root" ,'label':"Sphaleron, E_{Sph} = 9 TeV, PEF = %s"%PEF_9TeV,"color":kGreen    ,"xsec":Xsec[9.0]*PEF_9TeV}
-Sphaleron_10TeV_CT10= {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphalaron/BHflatTuple_Sphaleron-CT10_PEF_1_Espha_10.root",'label':"Sphaleron, E_{Sph} = 10 TeV, PEF = %s"%PEF_10TeV,"color":kOrange ,"xsec":Xsec[10.0]*PEF_10TeV}
+Sphaleron_8TeV_CT10 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphalaron/BHflatTuple_Sphaleron-CT10_PEF_1_Espha_8.root" ,'label':"Sphaleron, E_{sph} = 8 TeV, PEF = %s"%PEF_8TeV,"color":kCyan     ,"xsec":Xsec[8.0]*PEF_8TeV}
+Sphaleron_9TeV_CT10 = {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphalaron/BHflatTuple_Sphaleron-CT10_PEF_1_Espha_9.root" ,'label':"Sphaleron, E_{sph} = 9 TeV, PEF = %s"%PEF_9TeV,"color":kGreen    ,"xsec":Xsec[9.0]*PEF_9TeV}
+Sphaleron_10TeV_CT10= {'fname':"../BH_MDlimit/SignalFlatTuple_2016/Sphalaron/BHflatTuple_Sphaleron-CT10_PEF_1_Espha_10.root",'label':"Sphaleron, E_{sph} = 10 TeV, PEF = %s"%PEF_10TeV,"color":kOrange ,"xsec":Xsec[10.0]*PEF_10TeV}
 lowMultiSignals ={
 "BH1_MBH8":BH1_MBH8,
 "BH1_MBH9":BH1_MBH9,
