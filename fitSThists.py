@@ -840,7 +840,8 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
                 #print x, systematic, Uncertainty
                 stExcRatio.SetBinContent(ibin, (stExcRatio.GetBinContent(ibin)-fbest.Eval(x)) /Uncertainty )
                 stExcRatio.SetBinError(ibin, 0)
-        stExcRatio.GetYaxis().SetRangeUser(-2.8,2.8)
+        stExcRatio.GetYaxis().SetRangeUser(-3,3)
+        stExcRatio.GetYaxis().SetNdivisions(504);
         stExcRatio.SetFillColorAlpha(kGray,0.35)
         stExcRatio.SetLineColor(kBlue)
         stExcRatio.GetYaxis().SetLabelSize(0.13)
@@ -892,6 +893,17 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
     x1 = x1/1000
     x2 = x2/1000
     gPad.Update()
+    y1 = gPad.GetUymin()
+    y2 = gPad.GetUymax()
+    print x1,x2,y1,y2
+    lowerbox  = TBox(x1,y1,x2,y2)
+    lowerbox.SetFillColorAlpha(kYellow,0.3)
+    lowerbox.SetFillStyle(3002)
+    lowerbox.Draw("same")
+    if DrawPullPanel:
+        stExcRatio.Draw("same HIST")
+    else:
+        stExcRatio.Draw("same EP")
 
 
     #Draw Fit uncertainty
@@ -931,7 +943,6 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
                 RatioFillGraphs["gUp_norm"].Draw("sameC")
                 RatioFillGraphs["gDown_norm"].SetLineColor(kRed)
                 RatioFillGraphs["gDown_norm"].Draw("sameC")
-            gPad.RedrawAxis("g")
             stExcRatio.Draw("sameEP")
     else:
         fpulls = []
@@ -946,16 +957,7 @@ def NormAndDrawST(stHist,j,ExcOrInc,stRefHist,WriteCanvas,Signals=None):
             fpulls.append(f_diff)
         for f in fpulls:
             f.Draw("same")
-
-    gPad.Update()
-    y1 = gPad.GetUymin()
-    y2 = gPad.GetUymax()
-    print x1,x2,y1,y2
-    lowerbox  = TBox(x1,y1,x2,y2)
-    lowerbox.SetFillColorAlpha(kYellow,0.3)
-    lowerbox.SetFillStyle(3002)
-    lowerbox.Draw("same")
-      
+     
     if(WriteCanvas):
         STcomparisons[canvasName].RedrawAxis()
         STcomparisons[canvasName].Write()
